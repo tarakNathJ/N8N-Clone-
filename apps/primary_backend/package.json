@@ -1,0 +1,24 @@
+{
+  "name": "primary_backend",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "build": "npx tsc",
+    "watch": "npx tsc --watch",
+    "start": "node dist/index.js",
+    "dev": "npm run watch & node dist/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "nodemon": "^3.1.10",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@master/database": "^1.0.0",
+    "body-parser": "^2.2.0",
+    "dotenv": "^17.2.3"
+  }
+}
