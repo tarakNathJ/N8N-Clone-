@@ -174,14 +174,34 @@ export const create_step = async_handler(
       );
     }
 
-    const create_step = await prisma.step.create({
-      data: {
-        name: name,
+    const chack_step_are_exist = await prisma.step.findFirst({
+      where: {
         index: index,
+      },
+    });
+    const create_step = await prisma.step.upsert({
+      where: {
+        id: chack_step_are_exist?.id,
+        index: index,
+        workflow_id: chack_workflow_exist_or_not.id,
+      },
+      update: {
+        name,
         typeofstap_id: chack_typeofstep_are_exist_or_not.id,
         user_id: find_user_are_exist_or_not.id,
         workflow_id: chack_workflow_exist_or_not.id,
-        meta_data: meta_data,
+        meta_data,
+        status: schemaType.status.ACTIVE,
+        update_at: new Date(),
+      },
+
+      create: {
+        name,
+        index,
+        typeofstap_id: chack_typeofstep_are_exist_or_not.id,
+        user_id: find_user_are_exist_or_not.id,
+        workflow_id: chack_workflow_exist_or_not.id,
+        meta_data,
         status: schemaType.status.ACTIVE,
         create_at: new Date(),
       },
@@ -201,3 +221,35 @@ export const create_step = async_handler(
       .json(new api_responce(201, create_step, "success fully create step"));
   })
 );
+
+export const get_all_steps = async_handler(async (req, res) => {
+  const { workflowId } = req.body;
+  if (!workflowId) {
+    {
+      throw new api_error(400, "full fill all requirement", Error.prototype);
+    }
+  }
+
+  const find_user_are_exist_or_not = await prisma.user.findFirst({
+    where: {
+      //@ts-ignore
+      email: req.email,
+    },
+    select: {
+      id: true,
+    },
+  });
+  if (!find_user_are_exist_or_not) {
+    throw new api_error(409, "user are not exist , try again", Error.prototype);
+  }
+
+  const find_steps = await prisma.step.findMany({
+    where: {
+      workflow_id: workflowId,
+      user_id: find_user_are_exist_or_not.id,
+    },
+  });
+  return res
+    .status(200)
+    .json(new api_responce(200, find_steps, "thats your all steps"));
+});

@@ -18,6 +18,7 @@ enum status {
   ACTIVE
   DEACTIVE
 }
+
 enum work_type {
   NORMAL
   AUTOMATIC
@@ -29,131 +30,122 @@ enum working_status {
   SUCCESS
   FAILED
 }
+
 enum step_validation_status {
-  SUCCCESS 
+  SUCCCESS
   PANDING
   NEXTSTAGE
   DONE
 }
 
 model user {
-  id Int @id  @default(autoincrement())
-  name String 
-  email String @unique 
+  id        Int        @id @default(autoincrement())
+  name      String
+  email     String     @unique
   password  String
-  is_active Boolean 
-  create_at DateTime 
-  update_at DateTime  @default(now())
-  stepes step[]
-  workflow workflow[]
+  is_active Boolean
+  create_at DateTime
+  update_at DateTime   @default(now())
+  stepes    step[]
+  workflow  workflow[]
 
   @@index([email])
 }
 
-model typeofstep{
-  id Int @id @default(autoincrement())
-  name String  @unique
-  app String @unique
+model typeofstep {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  app       String    @unique
   work_type work_type
-  meta_data  Json
-  image_url String 
-  create_at DateTime 
-  update_at DateTime @default(now())
-  stepes step[]
-  @@index([id,app])
-  
+  meta_data Json
+  image_url String
+  create_at DateTime
+  update_at DateTime  @default(now())
+  stepes    step[]
+
+  @@index([id, app])
 }
 
 model workflow {
-  id Int  @id @default(autoincrement())
-  name String @unique 
-  user_id Int
-  status  status
-  create_at DateTime 
-  update_at DateTime @default(now())
-  user user @relation(references: [id],fields: [user_id])
-  stepes step[]
+  id          Int          @id @default(autoincrement())
+  name        String       @unique
+  user_id     Int
+  status      status
+  create_at   DateTime
+  update_at   DateTime     @default(now())
+  user        user         @relation(references: [id], fields: [user_id])
+  stepes      step[]
   stepes_runs stepes_run[]
 
   @@index([id])
 }
 
-model step{
-  id Int  @id  @default(autoincrement())
-  name String ?
-  index  Int 
-  typeofstap_id  Int 
-  user_id Int
-  workflow_id Int
-  meta_data Json 
-  status status
-  create_at DateTime 
-  update_at DateTime @default(now())
-  typeofstep  typeofstep @relation(references: [id] ,fields: [typeofstap_id])
-  user  user @relation( references: [id], fields: [user_id])
-  workflow workflow @relation( references: [id],fields: [workflow_id] )
-  stepes_runs stepes_run[]
+model step {
+  id            Int          @id @default(autoincrement())
+  name          String?
+  index         Int
+  typeofstap_id Int
+  user_id       Int
+  workflow_id   Int
+  meta_data     Json
+  status        status
+  create_at     DateTime
+  update_at     DateTime     @default(now())
+  typeofstep    typeofstep   @relation(references: [id], fields: [typeofstap_id])
+  user          user         @relation(references: [id], fields: [user_id])
+  workflow      workflow     @relation(references: [id], fields: [workflow_id])
+  stepes_runs   stepes_run[]
 
-  
-  @@index([workflow_id,id,user_id])
-
+  @@unique([workflow_id, index])
+  @@index([workflow_id, id, user_id, index])
 }
 
-
-model  stepes_run{
-  id Int @id @default(autoincrement())
-  meta_data Json
-  status working_status
-  step_id Int 
-  workflow_id Int
-  create_at DateTime
-  update_at DateTime @default(now())
-  step  step @relation(references: [id] ,fields: [step_id])
-  workflow workflow  @relation( references: [id], fields: [workflow_id])
-  out_box_step_run out_box_step_run[]
+model stepes_run {
+  id                      Int                      @id @default(autoincrement())
+  meta_data               Json
+  status                  working_status
+  step_id                 Int
+  workflow_id             Int
+  create_at               DateTime
+  update_at               DateTime                 @default(now())
+  step                    step                     @relation(references: [id], fields: [step_id])
+  workflow                workflow                 @relation(references: [id], fields: [workflow_id])
+  out_box_step_run        out_box_step_run[]
   working_step_validation working_step_validator[]
-  
+
   @@index([id])
 }
-
 
 model out_box_step_run {
-  id Int @id @default(autoincrement())
+  id            Int        @id @default(autoincrement())
   stepes_run_id Int
-  create_at DateTime
-  update_at DateTime @default(now())
-  stepes_run stepes_run @relation( references: [id], fields: [stepes_run_id])
+  create_at     DateTime
+  update_at     DateTime   @default(now())
+  stepes_run    stepes_run @relation(references: [id], fields: [stepes_run_id])
 }
 
-
 model working_step_validator {
-  id Int @id @default(autoincrement())
-  stepes_run_id Int
-  email String ?
-  message_id String  ? @unique
-  index Int
-  status step_validation_status
-  create_at  DateTime
-  update_at DateTime @default(now())
-  stepes_run stepes_run @relation(references: [id],fields: [stepes_run_id])
+  id                     Int                      @id @default(autoincrement())
+  stepes_run_id          Int
+  email                  String?
+  message_id             String?                  @unique
+  index                  Int
+  status                 step_validation_status
+  create_at              DateTime
+  update_at              DateTime                 @default(now())
+  stepes_run             stepes_run               @relation(references: [id], fields: [stepes_run_id])
   reseve_email_validator reseve_email_validator[]
 
   @@index([message_id])
 }
 
-
-model reseve_email_validator{
-  id Int @id @default( autoincrement())
+model reseve_email_validator {
+  id                        Int                    @id @default(autoincrement())
   working_step_validator_id Int
-  status working_status
-  create_at   DateTime
-  update_at   DateTime   @default(now())
-  working_step_validator working_step_validator @relation( references: [id], fields: [working_step_validator_id])
+  status                    working_status
+  create_at                 DateTime
+  update_at                 DateTime               @default(now())
+  working_step_validator    working_step_validator @relation(references: [id], fields: [working_step_validator_id])
 
   @@index([working_step_validator_id])
 }
-
-
-
-
-
