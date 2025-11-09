@@ -4,7 +4,7 @@ import type { responceType } from "../types/index.js";
 
 class api_error extends Error {
   statuscode: responceType["statusCode"];
-  errors :responceType["error"];
+  errors? :responceType["error"];
   override stack!: string;
   message: responceType["message"];
   data: any[];
