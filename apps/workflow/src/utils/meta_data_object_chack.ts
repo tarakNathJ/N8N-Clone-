@@ -72,7 +72,7 @@ class type_chack_for_steps_metadata {
   }
 
 //   chack from all field
-  is_form_field_chacker(obj: form): obj is form {
+  private  is_form_field_chacker(obj: form): obj is form {
     return (
       typeof obj === "object" &&
       obj !== null &&
