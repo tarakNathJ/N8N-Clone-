@@ -68,3 +68,14 @@ export const create_types_of_steps = async_handler(
       );
   }
 );
+
+
+
+export const get_all_types_of_step = async_handler(async(req ,res)=>{
+    const get_all_type_of_step = await prisma.typeofstep.findMany()
+    if (!get_all_type_of_step){
+        throw new api_error(400,"type of steps are not exist",Error.prototype)
+    }
+    return res.status(200).json(new api_responce(200 ,[]," success fully get all data "))
+})
+
