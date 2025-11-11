@@ -36,9 +36,10 @@ export const verify_JWT = async_handler(async (req, _, next) => {
     if (!user) {
       throw new api_error(401, "Invalid Access Token",Error.prototype);
     }
-
+    // console.log(user);
     // @ts-ignore
-    req.id =user.id 
+    req.user =user
+
     next();
   } catch (error :any) {
     throw new api_error(401, error?.message || "Invalid access token",Error.prototype);

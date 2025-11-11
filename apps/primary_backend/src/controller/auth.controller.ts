@@ -44,16 +44,14 @@ export const sign_up_controller = async_handler(async (req, res) => {
   // add new entry in our  db
 
   const add_new_entry_in_our_db = await prisma.user.create({
+    // @ts-ignore
     data: {
-      email: email,
       name: name,
+      email: email,
       password: hash_password,
       is_active: true,
+      //@ts-ignore
       create_at: new Date(),
-    },
-    select: {
-      name,
-      email,
     },
   });
 
@@ -111,7 +109,7 @@ export const login_controller = async_handler(async (req, res) => {
   if (!secret) {
     throw new api_error(400, " env not exist ");
   }
-  const access_token = JWT.sign(token, secret);
+  const access_token = JWT.sign(token, secret, { expiresIn: "1d" });
   if (!access_token) {
     throw new api_error(400, "  failed to create  access token  ");
   }
@@ -176,6 +174,7 @@ export const change_user_password = async_handler(async (req, res) => {
     where: {
       email: email,
     },
+    // @ts-ignore
     data: {
       password: hash_password,
     },

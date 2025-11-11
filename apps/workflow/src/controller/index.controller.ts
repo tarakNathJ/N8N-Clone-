@@ -160,7 +160,7 @@ export const create_step = async_handler(
     const chack_typeofstep_are_exist_or_not = await prisma.typeofstep.findFirst(
       {
         where: {
-          id: workflow_id,
+          id: typeofstap_id,
           name: name,
         },
         select: {
@@ -222,25 +222,17 @@ export const create_step = async_handler(
 );
 
 export const create_work_flow = async_handler(async (req, res) => {
-  const { name } = req.body();
+  const { name } = req.body;
   if (!name) {
     throw new api_error(400, "full fill all requirement", Error.prototype);
   }
 
-  const find_user_are_exist_or_not = await prisma.user.findFirst({
-    where: {
-      //@ts-ignore
-      id: req.id,
-    },
-  });
-  if (!find_user_are_exist_or_not) {
-    throw new api_error(409, "user are not exist , try again", Error.prototype);
-  }
-
+  // create new workflow
   const create_workflow = await prisma.workflow.create({
     data:{
       name:`${name}-${new Date}`,
-      user_id: find_user_are_exist_or_not.id,
+      //@ts-ignore
+      user_id: req.user.id,
       status:"ACTIVE",
       create_at:new Date()
     },
@@ -257,6 +249,28 @@ export const create_work_flow = async_handler(async (req, res) => {
   return res.status(201).json(new api_responce(201,create_workflow,"success fully create your workflow"))
 
 });
+
+export const get_all_workflow = async_handler(async(req ,res)=>{
+// get  all workflow
+  const get_workflow = await prisma.workflow.findMany({
+    where:{
+      // @ts-ignore
+      user_id:req.user.id
+    }
+  })
+
+
+  if (!get_workflow){
+
+    throw new api_error(400, "you dont have any workflow",Error.prototype)
+
+  }
+
+  return res.status(200).json( new  api_responce (200,get_workflow,"this is your  all workflow") )
+  
+})
+
+
 
 
 export const get_all_steps = async_handler(async (req, res) => {
