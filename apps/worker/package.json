@@ -23,6 +23,7 @@
     "nodemailer": "^7.0.10"
   },
   "devDependencies": {
+    "@types/node-telegram-bot-api": "^0.64.12",
     "@types/nodemailer": "^7.0.3"
   }
 }
