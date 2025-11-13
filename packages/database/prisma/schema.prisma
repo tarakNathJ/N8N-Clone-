@@ -132,8 +132,8 @@ model out_box_step_run {
 model working_step_validator {
   id                     Int                      @id @default(autoincrement())
   stepes_run_id          Int
-  email                  String?
-  message_id             String?                  @unique
+  email                  String
+  message_id             String                  @unique
   index                  Int
   status                 step_validation_status
   create_at              DateTime
@@ -147,6 +147,8 @@ model working_step_validator {
 model reseve_email_validator {
   id                        Int                    @id @default(autoincrement())
   working_step_validator_id Int
+  email                     String
+  message_id                String                 @unique
   status                    working_status
   create_at                 DateTime
   update_at                 DateTime               @default(now())
