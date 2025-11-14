@@ -159,6 +159,11 @@ model reseve_email_validator {
   @@index([working_step_validator_id])
 }
 
+model cron_worker_counting_table {
+  id Int @id @default(autoincrement())
+  privious_time DateTime
+  update_at DateTime @default(now())
+}
 
 model mail_template {
   id Int @id  @default(autoincrement())
