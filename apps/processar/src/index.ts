@@ -21,7 +21,7 @@ async function init_kafka_producer(): Promise<Producer> {
     brokers: ['localhost:9092'],
   });
   producer = kafka.producer();
-  console.log("producer : ", producer);
+  
 
   return producer;
 }
@@ -42,7 +42,7 @@ const process_all_data = async () => {
         await get_producer.connect();
       }
       // @ts-ignore
-      console.log( "produce  conne :   ",get_producer)
+      // console.log( "produce  conne :   ",get_producer)
       // @ts-ignore
       chack_all_process.map((data: any) => {
         get_producer.send({

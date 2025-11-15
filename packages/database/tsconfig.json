@@ -4,9 +4,12 @@
     "rootDir": "./src",
     "outDir": "./dist",
     "types": ["node"],
+    "module": "NodeNext",
     "sourceMap": true,
     "declaration": true,
-    "declarationMap": true
+    "declarationMap": true,
+    "esModuleInterop": true,
+    "moduleResolution": "NodeNext",
   },
   "include": ["src"]
 }
