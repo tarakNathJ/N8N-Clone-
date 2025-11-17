@@ -1,0 +1,5 @@
+{
+  "name": "Copy of FlowCraft - n8n-style Workflow Editor",
+  "description": "A full frontend-only workflow builder in React + Redux Toolkit + Tailwind + Framer Motion. Create, connect, and manage nodes and edges in a beautiful, animated interface. All data is saved locally in your browser.",
+  "requestFramePermissions": []
+}
