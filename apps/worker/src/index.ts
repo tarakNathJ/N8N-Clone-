@@ -65,6 +65,7 @@ async function work_executer() {
           return;
         }
         const data = JSON.parse(message.value?.toString());
+        console.log(data);
         await new Promise((resolve, reject) => setTimeout(resolve, 6000));
         // console.log(data);
         if (data.type == "MESSAGE_FROM_PROECSSOR") {
@@ -106,10 +107,17 @@ async function work_executer() {
               template = email_template;
               break;
             case "telegram":
+              let meta_data = db_data.get_steprun_table.meta_data
+              if(data.run.reseve_email_validator){
+                console.log(data.run.reseve_email_validator)
+                meta_data = {
+                  resever_email_datas:data.run.reseve_email_validator[0].id
+                }
+              }
               const telegram_template = {
                 token: db_data.get_step_find_by_id_and_index.meta_data.token,
                 chat_id: db_data.get_step_find_by_id_and_index.meta_data.chatId,
-                message: db_data.get_steprun_table.meta_data,
+                message: meta_data,
               };
               template = telegram_template;
               break;
@@ -144,113 +152,14 @@ async function work_executer() {
             messages: [
               {
                 value: JSON.stringify({
-                  type: "MESSAGE_FROM_WORKER",
+                  type: "MESSAGE_FROM_PROECSSOR",
                   run: data.run,
                   stage: data.stage + 1,
                 }),
               },
             ],
           });
-        } else if (data.type == "MESSAGE_FROM_WORKER") {
-          if (!data.run) {
-            return;
-          }
-
-          // chack in our data base  data  exist or not
-          const db_data = await new database_service_provider().getdata(
-            data.run.stepes_run_id,
-            data.stage
-          );
-
-          if (
-            !db_data ||
-            db_data.length == 0 ||
-            !db_data.get_step_find_by_id_and_index
-          ) {
-            console.log("no data found");
-            return;
-          }
-
-          let template:
-            | object_type_for_email
-            | object_type_for_telegram
-            | receive_email_type
-            | null = null;
-
-          // chack which type of work
-          switch (db_data.get_step_find_by_id_and_index.name) {
-            case "gmail":
-              const email_template = {
-                sender_email:
-                  db_data.get_step_find_by_id_and_index.meta_data.email,
-                app_password:
-                  db_data.get_step_find_by_id_and_index.meta_data.app_password,
-                message:
-                  db_data.get_step_find_by_id_and_index.meta_data.message,
-                receiver_email: db_data.get_steprun_table?.meta_data.email,
-                subject: " n8n ",
-                stepes_run_id: data.run.stepes_run_id,
-                stage: data.stage,
-              };
-              template = email_template;
-              break;
-            case "telegram":
-              const telegram_template = {
-                token: db_data.get_step_find_by_id_and_index.meta_data.token,
-                chat_id: db_data.get_step_find_by_id_and_index.meta_data.chatId,
-                message: db_data.get_steprun_table.meta_data,
-              };
-              template = telegram_template;
-              break;
-            case "receive_email":
-              const receive_email_template = {
-                stepes_run_id: data.run.stepes_run_id,
-              };
-              template = receive_email_template;
-
-              break;
-            default:
-              break;
-          }
-
-          if (!template) {
-            return;
-          }
-          //
-          await new request_transfer_on_your_right_direction().routing_all_request_on_right_direction(
-            db_data.get_step_find_by_id_and_index.name,
-            //@ts-ignore
-            template
-          );
-
-          if (db_data.get_step_find_by_id_and_index.name == "receive_email") {
-            await consumer.commitOffsets([
-              {
-                topic,
-                partition,
-                offset: (parseInt(message.offset) + 1).toString(),
-              },
-            ]);
-            await new Promise((resolve, reject) => setTimeout(resolve, 4000));
-            return;
-          }
-          // produce new message for next->target
-          const get_producer = init_producer();
-          await get_producer.connect();
-          await get_producer.send({
-            topic: process.env.KAFKA_TOPIC as string,
-            messages: [
-              {
-                value: JSON.stringify({
-                  type: "MESSAGE_FROM_WORKER",
-                  run: data.run,
-                  stage: data.stage + 1,
-                }),
-              },
-            ],
-          });
-        }
-
+        } 
         await consumer.commitOffsets([
           {
             topic,

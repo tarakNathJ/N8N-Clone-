@@ -176,6 +176,11 @@ class receive_email {
             stepes_run_id:true,
             update_at:true,
             create_at:true,
+            reseve_email_validator:{
+              select:{
+                id:true
+              }
+            }
           }
         })
         return result_for_update_step ;

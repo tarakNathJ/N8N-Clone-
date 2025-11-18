@@ -33,7 +33,7 @@ async function init_kafka() {
 
 // cron scheduler
 const cron_task = cron.schedule(
-  "0 0 * * *",
+  "* * * * *",
   async () => {
     await init_cron_worker();
   },
@@ -72,7 +72,6 @@ async function init_cron_worker() {
 
     for (const key of get_all_receive_emai_step) {
        const data =  await new receive_email().run((key.meta_data as any).app_password,(key.meta_data as any).email);
-
        get_producer.send({
         topic: process.env.KAFKA_TOPIC as string,
         messages: data.map((item) => ({
@@ -82,13 +81,15 @@ async function init_cron_worker() {
               stepes_run_id: item.stepes_run_id,
               create_at:item.create_at,
               update_at:item.update_at,
+              reseve_email_validator:item.reseve_email_validator,
              
             },
-            stage: key.index,
+            stage: key.index +1,
           }),
         })),
        })
     }
+    console.log("cron round completed successfully");
     await new Promise((resolve, reject) => setTimeout(resolve, 4000));
     cron_task.start();
     return true;

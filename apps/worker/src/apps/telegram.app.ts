@@ -88,10 +88,10 @@ class send_message_on_telegram_bot {
   ) {
     try {
       // fetch email template  for db
-      const get_email_template = await prisma.mail_template.findUnique({
+      const get_email_template = await prisma.mail_template.findFirst({
         where: {
           // @ts-ignore
-          reseve_email_validator_id: message.resever_email_validator_id,
+          reseve_email_validator_id: message.resever_email_datas,
         },
         select: {
           template: true,
@@ -119,11 +119,11 @@ class send_message_on_telegram_bot {
             await ts.reseve_email_validator.update({
               where: {
                 // @ts-ignore
-                id: message.resever_email_validator_id,
+                id: message.resever_email_datas,
               },
               data: {
                 // @ts-ignore
-                status: schemaType.step_validation_status.DONE,
+                status: schemaType.working_status.SUCCESS,
                 update_at: new Date(),
               },
               select: {
@@ -158,17 +158,26 @@ class send_message_on_telegram_bot {
   ) {
     try {
       let status = false;
-      switch (message) {
-        case ("file_name" in message) as unknown as object:
-          status = await this.send_file_to_telegram(token, chat_id, message);
-          break;
-        case ("resever_email_datas" in message) as unknown as object:
-          status = await this.send_email_template(token, chat_id, message);
-          break;
-        default:
-          status = await this.send_message(token, chat_id, message);
-          break;
+      
+      // @ts-ignore
+      if(message.resever_email_datas ){
+        // console.log("receive email pic this :",message);
+        status = await this.send_email_template(token, chat_id, message);
+      }else{
+        status = await this.send_message(token, chat_id, message);
       }
+      // switch (message) {
+      //   case ("file_name" in message) as unknown as object:
+      //     status = await this.send_file_to_telegram(token, chat_id, message);
+      //     break;
+      //   case (message.hasOwnProperty("resever_email_datas")) as unknown as any:
+      //     console.log("receive email pic this :",message);
+      //     status = await this.send_email_template(token, chat_id, message);
+      //     break;
+      //   default:
+      //     status = await this.send_message(token, chat_id, message);
+      //     break;
+      // }
 
       return status;
     } catch (error: any) {
