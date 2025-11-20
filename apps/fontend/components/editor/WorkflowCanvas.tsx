@@ -11,6 +11,9 @@ import { motion } from 'framer-motion';
 const WorkflowCanvas: React.FC = () => {
   const dispatch = useDispatch();
   const { nodes, edges } = useSelector((state: RootState) => state.editor);
+  console.log(nodes);
+  console.log(edges);
+
   const canvasRef = useRef<HTMLDivElement>(null);
 
   const onDrop = useCallback((event: React.DragEvent) => {

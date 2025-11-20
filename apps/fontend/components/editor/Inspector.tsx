@@ -1,9 +1,9 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "../../store/store";
 import { motion, AnimatePresence } from "framer-motion";
 import { updateNode, deleteNode } from "../../store/editorSlice";
-import { Trash2 } from "lucide-react";
+import { Trash2, Save } from "lucide-react";
 import { Node } from "../../types";
 
 const Inspector: React.FC = () => {
@@ -16,9 +16,6 @@ const Inspector: React.FC = () => {
   const selectedNode = selectedNodeId ? nodes[selectedNodeId] : null;
   const type_of_step = "type_of_step";
 
-  // -----------------------------
-  // SAFELY PARSE SESSION STORAGE
-  // -----------------------------
   const raw = sessionStorage.getItem(type_of_step);
   let data: any[] = [];
 
@@ -26,24 +23,17 @@ const Inspector: React.FC = () => {
     data = raw ? JSON.parse(raw) : [];
   } catch (e) {
     console.warn("Invalid JSON in sessionStorage[type_of_step]");
-    data = [];
   }
 
-  // -----------------------------
-  // FIND MATCHING META DATA
-  // -----------------------------
   const appName = selectedNode?.label?.split(" ")[0] ?? "";
   const found = data.find((item) => item.app === appName);
 
+  // Create metadata array (supports array or object)
   let metadataArray: any[] = [];
 
-  // Case A: meta_data is already an array
   if (Array.isArray(found?.meta_data)) {
     metadataArray = found.meta_data;
-  }
-
-  // Case B: meta_data is an object → convert using Object.entries
-  else if (
+  } else if (
     found?.meta_data &&
     typeof found.meta_data === "object" &&
     !Array.isArray(found.meta_data)
@@ -54,27 +44,52 @@ const Inspector: React.FC = () => {
     }));
   }
 
-  // Case C: meta_data is null/undefined → keep empty array
-  else {
-    metadataArray = [];
-  }
+  /* -------------------------------------------------
+     🆕 LOCAL STATE TO STORE INPUT FIELD VALUES
+  -------------------------------------------------- */
+  const [fieldValues, setFieldValues] = useState<Record<string, any>>({});
 
-  console.log("Metadata array used:", metadataArray);
+  // initialize values when selectedNode changes
+  useEffect(() => {
+    const initialValues: any = {};
+    metadataArray.forEach((m) => {
+      initialValues[m.label] = m.value ?? "";
+    });
+    setFieldValues(initialValues);
+  }, [selectedNodeId]);
 
-  // -----------------------------
-  const handleUpdate = (data: Partial<Node>) => {
-    if (selectedNodeId) {
-      dispatch(updateNode({ id: selectedNodeId, data }));
-    }
+  const handleFieldChange = (label: string, value: string) => {
+    setFieldValues((prev) => ({
+      ...prev,
+      [label]: value,
+    }));
   };
 
+  /* -------------------------------------------------
+     🆕 SAVE FUNCTION — UPDATES THE NODE WITH INPUT VALUES
+  -------------------------------------------------- */
+  const handleSave = () => {
+    if (!selectedNodeId) return;
+
+    const updatedNodeData = {
+      metadata: fieldValues,
+    };
+
+    console.log("📌 Saving Node:", updatedNodeData);
+
+    // @ts-ignore
+    dispatch(updateNode({ id: selectedNodeId, data: updatedNodeData }));
+  };
+
+  /* -------------------------------------------------
+     DELETE
+  -------------------------------------------------- */
   const handleDelete = () => {
     if (selectedNodeId) {
       dispatch(deleteNode(selectedNodeId));
     }
   };
 
-  // -----------------------------
   return (
     <AnimatePresence>
       {selectedNode && (
@@ -98,13 +113,13 @@ const Inspector: React.FC = () => {
               </p>
             </div>
 
-            {/* DYNAMIC FIELDS */}
+            {/* Dynamic Fields */}
             {metadataArray.map((item: any, index: number) => (
               <InputField
                 key={index}
                 label={item.label}
-                value={item.value ?? ""}
-                onChange={(v) => console.log("change:", v)}
+                value={fieldValues[item.label] ?? ""}
+                onChange={(v) => handleFieldChange(item.label, v)}
               />
             ))}
 
@@ -117,8 +132,21 @@ const Inspector: React.FC = () => {
                 {selectedNode.type}
               </p>
             </div>
+
           </div>
 
+          {/* SAVE BUTTON */}
+          <motion.button
+            onClick={handleSave}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="w-full flex items-center justify-center gap-2 mt-4 py-2 bg-green-500/80 hover:bg-green-500 text-white font-semibold rounded-lg"
+          >
+            <Save className="w-4 h-4" />
+            Save Node
+          </motion.button>
+
+          {/* DELETE BUTTON */}
           <motion.button
             onClick={handleDelete}
             whileHover={{ scale: 1.05 }}
@@ -134,9 +162,9 @@ const Inspector: React.FC = () => {
   );
 };
 
-/* ---------------------------
-   INPUT FIELD COMPONENT
----------------------------- */
+/* ------------------------------------
+   Input Component — Now Controlled
+------------------------------------- */
 const InputField = ({
   label,
   value,
@@ -154,7 +182,8 @@ const InputField = ({
 
       <input
         type={label === "email" ? "email" : "text"}
-        value={value}
+        placeholder={value}
+        
         onChange={(e) => onChange(e.target.value)}
         className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#4295f1]"
       />
