@@ -3,7 +3,7 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { Node, Edge, NodeType, Workflow } from '../types';
 import { generateId } from '../utils/id';
 
-interface EditorState {
+export interface EditorState {
   workflowId: string | null;
   workflowName: string;
   nodes: Record<string, Node>;
