@@ -8,6 +8,9 @@ interface EditorState {
   workflowName: string;
   nodes: Record<string, Node>;
   edges: Edge[];
+  source : string
+  type:string
+
   selectedNodeId: string | null;
   connectMode: { fromNodeId: string } | null;
 }
@@ -19,7 +22,12 @@ const initialState: EditorState = {
   edges: [],
   selectedNodeId: null,
   connectMode: null,
+  source: '',
+  type: ''
 };
+
+
+
 
 const editorSlice = createSlice({
   name: 'editor',
@@ -119,3 +127,113 @@ export const {
 } = editorSlice.actions;
 
 export default editorSlice.reducer;
+
+
+/*
+
+0
+: 
+{name: "gmail", index: 1,…}
+create_at
+: 
+"2025-11-11T20:49:49.198Z"
+id
+: 
+1
+index
+: 
+1
+meta_data
+: 
+{email: "tarakjana355@gmail.com", message: "oya mather facker", app_password: "imuhcymmxadvocth"}
+name
+: 
+"gmail"
+status
+: 
+"ACTIVE"
+1
+: 
+{name: "webhook", index: 0, meta_data: {URL: "localhost:3004/api/workflow/1/1", METHOD: "POST"},…}
+create_at
+: 
+"2025-11-12T13:16:24.593Z"
+id
+: 
+2
+index
+: 
+0
+meta_data
+: 
+{URL: "localhost:3004/api/workflow/1/1", METHOD: "POST"}
+name
+: 
+"webhook"
+status
+: 
+"ACTIVE"
+2
+: 
+{name: "telegram", index: 2,…}
+create_at
+: 
+"2025-11-12T13:32:14.409Z"
+id
+: 
+3
+index
+: 
+2
+meta_data
+: 
+{token: "8483135554:AAHqSQouDrIpW0_V00MSDfSaIZh4LuwYMIA", chatId: "5839229257"}
+name
+: 
+"telegram"
+status
+: 
+"ACTIVE"
+3
+: 
+{name: "telegram", index: 4,…}
+create_at
+: 
+"2025-11-17T23:17:47.432Z"
+id
+: 
+4
+index
+: 
+4
+meta_data
+: 
+{token: "8483135554:AAHqSQouDrIpW0_V00MSDfSaIZh4LuwYMIA", chatId: 5839229257}
+name
+: 
+"telegram"
+status
+: 
+"ACTIVE"
+4
+: 
+{name: "receive_email", index: 3,…}
+create_at
+: 
+"2025-11-17T23:34:14.755Z"
+id
+: 
+5
+index
+: 
+3
+meta_data
+: 
+{email: "tarakjana355@gmail.com", app_password: ""}
+name
+: 
+"receive_email"
+status
+: 
+"ACTIVE"
+*/

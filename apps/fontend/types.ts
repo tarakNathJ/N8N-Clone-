@@ -18,6 +18,7 @@ export interface Node {
   y: number;
   label: string;
   data: NodeData;
+  metadata?: any;
 }
 
 export interface Edge {
