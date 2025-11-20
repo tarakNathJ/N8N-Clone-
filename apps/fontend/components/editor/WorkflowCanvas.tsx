@@ -52,6 +52,7 @@ const WorkflowCanvas: React.FC = () => {
         onDrop={onDrop}
         onDragOver={onDragOver}
     >
+      
         <svg className="absolute w-full h-full top-0 left-0 pointer-events-none">
             <defs>
               <marker

@@ -39,6 +39,7 @@ const EditorPage: React.FC<EditorPageProps> = ({ workflowId }) => {
     <div className="h-screen w-screen flex flex-col bg-gray-900 overflow-hidden">
       <header className="flex items-center justify-between p-3 bg-gray-900/80 backdrop-blur-sm border-b border-white/10 z-30">
         <div className="flex items-center gap-4">
+          
           <motion.button
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
