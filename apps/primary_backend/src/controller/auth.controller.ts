@@ -55,6 +55,7 @@ export const sign_up_controller = async_handler(async (req, res) => {
     },
     select: {
       email: true,
+      id:true
     },
   });
   if (!add_new_entry_in_our_db) {
@@ -79,7 +80,7 @@ export const sign_up_controller = async_handler(async (req, res) => {
     .json(
       new api_responce(
         201,
-        { access_token, email: add_new_entry_in_our_db.email },
+        { access_token, email: add_new_entry_in_our_db.email ,id:add_new_entry_in_our_db.id },
         " sign up success fully "
       )
     );
@@ -107,6 +108,7 @@ export const login_controller = async_handler(async (req, res) => {
     select: {
       password: true,
       email: true,
+      id:true
     },
   });
   if (!chack_email_in_out_db) {
@@ -138,7 +140,8 @@ export const login_controller = async_handler(async (req, res) => {
       200,
       {
         access_token,
-        email,
+        email:chack_email_in_out_db.email,
+        id:chack_email_in_out_db.id
       },
       " login success fully"
     )

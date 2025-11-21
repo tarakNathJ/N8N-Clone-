@@ -26,6 +26,7 @@ const LoginPage: React.FC = () => {
       console.log(responce.data.data.access_token);
 
       localStorage.setItem("access_token", responce.data.data.access_token);
+      sessionStorage.setItem("user_id", responce.data.data.id);
       navigate("/dashboard");
 
     } catch (error) {

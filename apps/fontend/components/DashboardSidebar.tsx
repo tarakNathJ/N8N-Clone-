@@ -1,10 +1,11 @@
 import React from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { setView } from '../store/navigationSlice';
-import { logoutAndRedirect } from '../store/authSlice';
+import {  useSelector } from 'react-redux';
+// import { setView } from '../store/navigationSlice';
+// import { logoutAndRedirect } from '../store/authSlice';
 import { RootState } from '../store/store';
 import { LayoutGrid, Workflow as WorkflowIcon, KeyRound, Settings, HelpCircle, LogOut } from 'lucide-react';
 import { Link ,useNavigate } from 'react-router-dom';
+
 
 
 interface NavLinkProps {
@@ -32,11 +33,22 @@ interface DashboardSidebarProps {
 }
 
 const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ activeView }) => {
-    const dispatch = useDispatch();
+    
     const user = useSelector((state: RootState) => state.auth.user);
     const userInitial = user?.email ? user.email.charAt(0).toUpperCase() : 'U';
 
     const navigate = useNavigate();
+
+    const logout_handler = () => {
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("workflows");
+        sessionStorage.removeItem("type_of_step");
+        sessionStorage.removeItem("user_id");
+        sessionStorage.removeItem("user_privious_step");
+        sessionStorage.removeItem("workflow_id")
+        navigate("/")
+    };
+
 
     return (
         <aside className="w-60 flex flex-col bg-[#131517] p-4 border-r border-gray-800 flex-shrink-0">
@@ -67,7 +79,7 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({ activeView }) => {
                             <div className="flex-1">
                                 <p className="text-sm font-semibold text-white truncate">{user?.email}</p>
                             </div>
-                             <button onClick={() => dispatch(logoutAndRedirect() as any)} className="p-2 rounded-full text-gray-400 hover:bg-gray-700 hover:text-white" title="Logout"><LogOut size={16}/></button>
+                             <button onClick ={logout_handler} className="p-2 rounded-full text-gray-400 hover:bg-gray-700 hover:text-white" title="Logout"><LogOut size={16}/></button>
                         </div>
                     </div>
                 </div>

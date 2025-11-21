@@ -10,12 +10,15 @@ import Inspector from '../components/editor/Inspector';
 import { useAutoSave } from '../hooks/useAutoSave';
 import { ArrowLeft, Play, Save } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+
 
 interface EditorPageProps {
   workflowId: string;
 }
 
 const EditorPage: React.FC<EditorPageProps> = ({ workflowId }) => {
+  const navigator = useNavigate();
   const dispatch = useDispatch();
   const workflowName = useSelector((state: RootState) => state.editor.workflowName);
   useAutoSave();
@@ -43,7 +46,7 @@ const EditorPage: React.FC<EditorPageProps> = ({ workflowId }) => {
           <motion.button
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
-            onClick={() => dispatch(setView({ view: 'dashboard' }))}
+            onClick={() => navigator("/dashboard")}
             className="p-2 rounded-full hover:bg-white/10 transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />

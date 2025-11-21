@@ -177,7 +177,7 @@ export const create_step = async_handler(
       name === "webhook"
     ) {
       // @ts-ignore
-      meta_data.URL = `${process.env.WORKFLOW_SERVER_URL}/${req.user.id}/${chack_workflow_exist_or_not.id}`;
+      meta_data.URL = `${process.env.WORKFLOW_SERVER_URL}/${chack_workflow_exist_or_not.id}/${req.user.id}`;
     }
 
     // even step are exist thi update or not exist then then creat
