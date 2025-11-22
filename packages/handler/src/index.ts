@@ -60,7 +60,8 @@ class api_error extends Error {
 }
 
 // metrix collect
-
+// Create a dedicated registry for server apps
+const server_register = new promClient.Registry();
 const collectDefaultMetrics = promClient.collectDefaultMetrics;
 collectDefaultMetrics({ register: promClient.register });
 
@@ -73,4 +74,52 @@ const metrix_handler = async (
   return res.send(await promClient.register.metrics());
 };
 
-export { api_error, api_responce, async_handler ,metrix_handler };
+function create_job_metrics(job_name: string) {
+  if (!/^[a-zA-Z_:][a-zA-Z0-9_:]*$/.test(job_name)) {
+    throw new Error(
+      `Invalid job_name "${job_name}". Metric names must match /^[a-zA-Z_:][a-zA-Z0-9_:]*$/`
+    );
+  }
+
+  const register = new promClient.Registry();
+
+  const gateway = new promClient.Pushgateway(
+    "http://localhost:9091",
+    {},
+    register
+  );
+
+  const job_counter = new promClient.Counter({
+    name: `${job_name}_runs_total`,
+    help: `total number of runs fro job ${job_name}`,
+    registers: [register],
+  });
+  const job_duration = new promClient.Histogram({
+    name: `${job_name}_duration_seconds`,
+    help: `duration of job ${job_name}`,
+    registers: [register],
+    buckets: [0.1, 0.5, 1, 1.5, 2, 5, 10, 30],
+  });
+
+  return {
+    job_counter,
+    job_duration,
+    push: async () => {
+      try {
+        await gateway.pushAdd({ jobName: job_name });
+        console.log(` Metrics pushed for job: ${job_name}`);
+      } catch (err: any) {
+        console.error("Failed to push metrics:", err.message);
+      }
+    },
+  };
+}
+
+export {
+  api_error,
+  api_responce,
+  async_handler,
+  metrix_handler,
+  create_job_metrics,
+  server_register,
+};

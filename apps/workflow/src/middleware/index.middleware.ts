@@ -1,5 +1,4 @@
-import async_handler from "../utils/async_handler.js";
-import { api_error } from "../utils/api_error.js";
+import { async_handler, api_error } from "@repo/handler";
 import { prisma } from "@master/database";
 import JWT from "jsonwebtoken"
 import { config } from "dotenv";

@@ -16,6 +16,7 @@
     "@aws-sdk/s3-request-presigner": "^3.928.0",
     "@aws-sdk/types": "^3.922.0",
     "@master/database": "^1.0.0",
+    "@repo/handler": "^1.0.0",
     "axios": "^1.13.2",
     "dotenv": "^17.2.3",
     "kafkajs": "^2.2.4",

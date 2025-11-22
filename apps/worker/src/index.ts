@@ -9,6 +9,9 @@ import type {
   object_type_for_telegram,
   receive_email_type,
 } from "./types/index.js";
+
+import { create_job_metrics } from "@repo/handler";
+
 dotenv.config();
 
 let producer: Producer;
@@ -37,6 +40,9 @@ const init_consumer = async (groupId = "default"): Promise<Consumer> => {
 
 async function work_executer() {
   try {
+    ///////////////////////////////////// init Prometheus metrics/////////////////////////////
+    const { job_counter, job_duration, push } = create_job_metrics("worker");
+    //////////////////////////////////////////////////////////////////////////////////////////
     // chack topic  are exist ot not
     const topic = process.env.KAFKA_TOPIC;
     if (!topic) {
@@ -64,8 +70,15 @@ async function work_executer() {
         if (!message.value) {
           return;
         }
+
+        // collect Prometheus metrics
+        ////////////////////// start metrics ///////////////////////////////
+        const end = job_duration.startTimer();
+        job_counter.inc();
+        //////////////////////////////////////////////////////////////////
+
         const data = JSON.parse(message.value?.toString());
-        console.log(data);
+
         await new Promise((resolve, reject) => setTimeout(resolve, 6000));
         // console.log(data);
         if (data.type == "MESSAGE_FROM_PROECSSOR") {
@@ -107,12 +120,12 @@ async function work_executer() {
               template = email_template;
               break;
             case "telegram":
-              let meta_data = db_data.get_steprun_table.meta_data
-              if(data.run.reseve_email_validator){
-                console.log(data.run.reseve_email_validator)
+              let meta_data = db_data.get_steprun_table.meta_data;
+              if (data.run.reseve_email_validator) {
+                console.log(data.run.reseve_email_validator);
                 meta_data = {
-                  resever_email_datas:data.run.reseve_email_validator[0].id
-                }
+                  resever_email_datas: data.run.reseve_email_validator[0].id,
+                };
               }
               const telegram_template = {
                 token: db_data.get_step_find_by_id_and_index.meta_data.token,
@@ -159,7 +172,11 @@ async function work_executer() {
               },
             ],
           });
-        } 
+        }
+        ////////////////////// end metrics ///////////////////////////////
+        end();
+        await push();
+        ///////////////////////////////////////////////////////
         await consumer.commitOffsets([
           {
             topic,
@@ -175,4 +192,6 @@ async function work_executer() {
     process.exit(1);
   }
 }
+
+
 work_executer();
