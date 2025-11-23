@@ -18,7 +18,7 @@ COPY typescript-config ./typescript-config
 RUN npm install
 
 # build only the primary backend
-RUN npx turbo run build --filter=primary_backend
+RUN npx turbo run build --filter=processor
 
 # generate prisma client
 RUN npx prisma generate --schema ./packages/database/prisma/schema.prisma
@@ -30,10 +30,10 @@ FROM node:20-slim AS runner
 WORKDIR /app
 
 # copy built primary backend
-COPY --from=builder /app/apps/primary_backend/dist ./dist
+COPY --from=builder /app/apps/processar/dist ./dist
 
 # copy package.json for runtime
-COPY --from=builder /app/apps/primary_backend/package*.json ./
+COPY --from=builder /app/apps/processar/package*.json ./
 
 # copy shared packages
 COPY --from=builder /app/packages ./packages
@@ -41,6 +41,6 @@ COPY --from=builder /app/packages ./packages
 # copy node_modules from build
 COPY --from=builder /app/node_modules ./node_modules
 
-EXPOSE 3000
+
 
 CMD ["node", "dist/index.js"]
