@@ -8,6 +8,13 @@ const async_handler =
     try {
       await func(req, res, next);
     } catch (error: any) {
+      // Handle invalid JSON body
+      if (error instanceof SyntaxError && "body" in error) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid JSON format. Please check your request body.",
+        });
+      }
       return res.status(error.status || error.statusCode || 500).json({
         success: false,
         message: error.message,
@@ -62,13 +69,11 @@ class api_error extends Error {
 // metrix collect
 
 const req_res_time = new promClient.Histogram({
-  name:"http_express_req_res_time",
-  help:"this tells how much time is taken by rreq and res",
-  labelNames: ["method","route","status_code"],
-  buckets: [ 1 ,30,50, 120, 200 ,400, 500, 800 ,1000, 2000]
+  name: "http_express_req_res_time",
+  help: "this tells how much time is taken by rreq and res",
+  labelNames: ["method", "route", "status_code"],
+  buckets: [1, 30, 50, 120, 200, 400, 500, 800, 1000, 2000],
 });
-
-
 
 const server_register = new promClient.Registry();
 const collectDefaultMetrics = promClient.collectDefaultMetrics;
@@ -131,5 +136,5 @@ export {
   metrix_handler,
   create_job_metrics,
   server_register,
-  req_res_time
+  req_res_time,
 };

@@ -45,13 +45,14 @@ async function work_executer() {
     //////////////////////////////////////////////////////////////////////////////////////////
     // chack topic  are exist ot not
     const topic = process.env.KAFKA_TOPIC;
-    if (!topic) {
+    const group_id = process.env.KAFKA_GROUP_ID;
+    if (!topic|| !group_id) {
       console.error("env variable not exit , ");
       process.exit(1);
     }
-
+ 
     // get  consumer
-    const get_consumer = await init_consumer("worker");
+    const get_consumer = await init_consumer(group_id);
 
     // connect consumer
     get_consumer?.connect().catch((error: any) => {

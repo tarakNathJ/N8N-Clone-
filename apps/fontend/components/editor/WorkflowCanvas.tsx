@@ -2,9 +2,27 @@ import React, { useRef, useCallback, useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "../../store/store";
 import { addNode, moveNode, loadWorkflow } from "../../store/editorSlice";
-import NodeComponent from "./Node";
+import {NodeComponent} from "./NodeComponent";
 import EdgeComponent from "./Edge";
 import { NodeType, Node } from "../../types";
+
+import ReactFlow, {
+  Node as node,
+  Edge,
+  addEdge,
+  Connection,
+  useNodesState,
+  useEdgesState,
+  Controls,
+  MiniMap,
+  Background,
+  BackgroundVariant,
+  ReactFlowProvider,
+} from "reactflow";
+
+const nodeTypes = {
+  custom: [],
+};
 
 const WorkflowCanvas: React.FC = () => {
   const dispatch = useDispatch();
@@ -23,6 +41,27 @@ const WorkflowCanvas: React.FC = () => {
 
   const handleZoomIn = () => setZoom((z) => Math.min(z + 0.1, 2.5));
   const handleZoomOut = () => setZoom((z) => Math.max(z - 0.1, 0.3));
+
+  //===============================================
+
+  const [rfNodes, setRfNodes, onNodesChange] = useNodesState([]);
+  const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState([]);
+
+  const [reactFlowInstance, setReactFlowInstance] = useState(null);
+
+  const onConnect = useCallback((connection: Connection) => {
+    setRfEdges((eds) => addEdge(connection, eds));
+  }, []);
+
+  const onNodeClick = useCallback((event: any, node: any) => {
+    console.log("Node clicked:", node);
+  }, []);
+
+  const nodeTypes = {
+    customNode: NodeComponent, // Use your custom Node here
+  };
+
+  //=============================================
 
   /* ------------------------------------
         FIXED: WHEEL ZOOM (mouse-centered)
@@ -194,12 +233,11 @@ const WorkflowCanvas: React.FC = () => {
         <button
           onClick={handleZoomOut}
           className="w-10 h-10 bg-gray-800 text-white rounded-full flex items-center justify-center text-xl"
-        >
-          –
-        </button>
+        ></button>
       </div>
-
-      <div
+      
+      
+      <ReactFlow
         ref={canvasRef}
         onDrop={onDrop}
         onDragOver={onDragOver}
@@ -237,12 +275,15 @@ const WorkflowCanvas: React.FC = () => {
           </svg>
 
           {Object.values(nodes).map((node: Node) => (
+            //@ts-ignore
             <NodeComponent key={node.id} node={node} onMove={handleNodeMove} />
           ))}
         </div>
-      </div>
+      </ReactFlow>
     </div>
   );
 };
 
 export default WorkflowCanvas;
+
+

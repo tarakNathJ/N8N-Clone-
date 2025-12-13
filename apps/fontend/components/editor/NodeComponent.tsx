@@ -28,7 +28,7 @@ const nodeColors: Record<NodeType, string> = {
     [NodeType.Delay]: 'border-orange-400',
 };
 
-const NodeComponent: React.FC<NodeProps> = React.memo(({ node, onMove }) => {
+export const NodeComponent: React.FC<NodeProps> = React.memo(({ node, onMove }) => {
   const dispatch = useDispatch();
   const { selectedNodeId, connectMode } = useSelector((state: RootState) => state.editor);
   const isSelected = selectedNodeId === node.id;
@@ -80,5 +80,3 @@ const NodeComponent: React.FC<NodeProps> = React.memo(({ node, onMove }) => {
     </motion.div>
   );
 });
-
-export default NodeComponent;

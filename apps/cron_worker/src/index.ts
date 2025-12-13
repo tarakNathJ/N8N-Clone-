@@ -34,7 +34,7 @@ async function init_kafka() {
 
 // cron scheduler
 const cron_task = cron.schedule(
-  "* * * * *",
+  "*/2 * * * *",
   async () => {
     await init_cron_worker();
   },
