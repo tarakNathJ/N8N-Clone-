@@ -1,46 +1,66 @@
-
+# =========================
+# Stage 1: Builder
+# =========================
 FROM node:20-slim AS builder
-
-# install openssl for prisma
-RUN apt-get update -y && apt-get install -y openssl
 
 WORKDIR /app
 
-# copy root config
+# Install OpenSSL 3.x for Debian
+RUN apt-get update -y && \
+    apt-get install -y openssl libssl3 ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+# Configure npm for better reliability
+RUN npm config set fetch-timeout 600000 && \
+    npm config set fetch-retries 5 && \
+    npm config set fetch-retry-mintimeout 20000 && \
+    npm config set fetch-retry-maxtimeout 120000
+
+# Root files
 COPY package*.json turbo.json ./
 
-# copy monorepo folders
+# Monorepo sources
 COPY apps ./apps
 COPY packages ./packages
 COPY typescript-config ./typescript-config
 
-# install dependencies
-RUN npm install
+# Install deps with retry logic
+RUN npm ci --prefer-offline --no-audit || \
+    (sleep 10 && npm ci --prefer-offline --no-audit) || \
+    (sleep 30 && npm ci --no-audit)
 
-# build only the primary backend
+# Generate Prisma client with debian-openssl-3.0.x binary
+WORKDIR /app/packages/database
+RUN npx prisma generate
+
+# Build only required app
+WORKDIR /app
 RUN npx turbo run build --filter=worker
 
-# generate prisma client
-RUN npx prisma generate --schema ./packages/database/prisma/schema.prisma
-
-
-
+# =========================
+# Stage 2: Runtime
+# =========================
 FROM node:20-slim AS runner
 
 WORKDIR /app
 
-# copy built primary backend
+# Install OpenSSL 3.x for runtime
+RUN apt-get update -y && \
+    apt-get install -y openssl libssl3 ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+ENV NODE_ENV=production
+
+# Copy built output
 COPY --from=builder /app/apps/worker/dist ./dist
 
-# copy package.json for runtime
+# Copy app package.json
 COPY --from=builder /app/apps/worker/package*.json ./
 
-# copy shared packages
+# Copy packages (includes generated Prisma)
 COPY --from=builder /app/packages ./packages
 
-# copy node_modules from build
+# Copy node_modules
 COPY --from=builder /app/node_modules ./node_modules
-
-
 
 CMD ["node", "dist/index.js"]

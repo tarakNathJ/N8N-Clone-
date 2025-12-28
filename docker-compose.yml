@@ -1,47 +1,235 @@
 version: "3.9"
 
 services:
+  # =============================primary backend==========================
+  primary_backend:
+    image: n8n/primary_backend:v1
+    container_name: primary_backend
+    ports:
+      - "4040:4040"
+    restart: always
+    networks:
+      - backend_network
+    depends_on:
+      - postgresql_db
+    environment:
+      PORT: 4040
+      DATABASE_URL: "postgresql://postgres:mysecretpassword@postgresql_db:5432/postgres"
+      JWT_SECRET: "mysecret"
+    deploy:
+      resources:
+        limits:
+          memory: 1.5g
+        reservations:
+          memory: 256m
 
-  # --------------------------------------------------------
-  # 1. Pushgateway (for workers, cron jobs, processors)
-  # --------------------------------------------------------
+# ============================= workflow ====================================
+  workflow:
+    image: n8_n/workflow:v1
+    container_name: workflow
+    ports:
+      - "4080:4080"
+    networks:
+      - backend_network
+    depends_on:
+      - postgresql_db
+    restart: always
+    environment:
+      ACCESS_TOKEN_SECRET: "mysecret"
+      DATABASE_URL: "postgresql://postgres:mysecretpassword@postgresql_db:5432/postgres"
+      PORT: 4080
+      WORKFLOW_SERVER_URL: http://localhost:4080/api/workflow/webhook
+    deploy:
+      resources:
+        limits:
+          memory: 1.5g
+        reservations:
+          memory: 256m
+
+# ============================= cron worker ====================================
+  cron_worker:
+    image: n8_n/cron_worker:v1
+    container_name: cron_worker
+    networks:
+      - backend_network
+    depends_on:
+      - kafka
+      - postgresql_db
+    restart: always
+    environment:
+      KAFKA_TOPIC: USER-TRADE
+      KAFKA_CLIENT_ID: mykafka
+      KAFKA_BROKER: "kafka:9092"
+      DATABASE_URL: "postgresql://postgres:mysecretpassword@postgresql_db:5432/postgres"
+    deploy:
+      resources:
+        limits:
+          memory: 1.5g
+        reservations:
+          memory: 256m
+
+  processar:
+    image: n8n/processar:v1
+    container_name: processar
+    networks:
+      - backend_network
+    depends_on:
+      - kafka
+      - postgresql_db
+    restart: always
+    environment:
+      KAFKA_TOPIC: USER-TRADE
+      KAFKA_CLIENT_ID: mykafka
+      KAFKA_BROKERS: "kafka:9092"
+      DATABASE_URL: "postgresql://postgres:mysecretpassword@postgresql_db:5432/postgres"
+    deploy:
+      resources:
+        limits:
+          memory: 1.5g
+        reservations:
+          memory: 256m
+
+  worker:
+    image: n8n/worker:v1 
+    container_name: worker
+    networks:
+      - backend_network
+    depends_on:
+      - kafka
+      - postgresql_db
+    restart: always
+    environment:
+      KAFKA_TOPIC: USER-TRADE
+      KAFKA_GROUP_ID: worker-group
+      KAFKA_CLIENT_ID: mykafka
+      KAFKA_BROCKER: "kafka:9092"
+      DATABASE_URL: "postgresql://postgres:mysecretpassword@postgresql_db:5432/postgres"
+    deploy:
+      resources:
+        limits:
+          memory: 1.5g
+        reservations:
+          memory: 256m
+
+
+  # ============================= postgresql ====================================
+
+  postgresql:
+    image: postgres:bookworm
+    container_name: postgresql_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: mysecretpassword
+      POSTGRES_DB: postgres
+      POSTGRES_MAX_CONNECTIONS: 200
+      POSTGRES_SHARED_BUFFERS: 256MB
+    ports:
+      - "5432:5432"
+    volumes:
+      - timescaledb-data:/var/lib/postgresql/data
+    restart: always
+    networks:
+      - backend_network
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+        reservations:
+          memory: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================= kafka ====================================
+  kafka:
+    image: apache/kafka:latest
+    container_name: kafka
+    hostname: kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_HEAP_OPTS: "-Xmx1536M -Xms512M"
+      KAFKA_NUM_NETWORK_THREADS: 3
+      KAFKA_NUM_IO_THREADS: 3
+      KAFKA_NUM_REPLICA_FETCHERS: 1
+      KAFKA_QUEUED_MAX_REQUESTS: 20
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_MIN_INSYNC_REPLICAS: 1
+      KAFKA_NUM_PARTITIONS: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_FLUSH_INTERVAL_MESSAGES: 10000
+      KAFKA_LOG_FLUSH_INTERVAL_MS: 3000
+      KAFKA_LOG_SEGMENT_BYTES: 468435456
+      KAFKA_LOG_RETENTION_BYTES: 2147483648
+      KAFKA_LOG_RETENTION_HOURS: 6
+      KAFKA_LOG_CLEANER_ENABLE: "true"
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    restart: unless-stopped
+    networks:
+      - backend_network
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+        reservations:
+          memory: 512m
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "kafka-broker-api-versions.sh --bootstrap-server localhost:9092",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ============================= pushgateway ====================================
+
   pushgateway:
     image: prom/pushgateway
     container_name: pushgateway
     ports:
       - "9091:9091"
 
-  # --------------------------------------------------------
-  # 2. Prometheus (pulls from your host services + Pushgateway)
-  # --------------------------------------------------------
+  # ============================= prometheus ====================================
   prometheus:
     image: prom/prometheus
     container_name: prometheus
     volumes:
-      - ./.prometheus_config.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus_config.yml:/etc/prometheus/prometheus.yml
     ports:
       - "9090:9090"
     depends_on:
       - pushgateway
 
-  # --------------------------------------------------------
-  # 3. Grafana (dashboards)
-  # --------------------------------------------------------
+  # ============================= grafana ====================================
   grafana:
     image: grafana/grafana
     container_name: grafana
     ports:
-      - "3001:3000"
+      - "3002:3000"
     depends_on:
       - prometheus
 
+networks:
+  backend_network:
+    driver: bridge
 
-
-# docker run -d \
-#   --name postgres-db \
-#   -e POSTGRES_USER=postgres \
-#   -e POSTGRES_PASSWORD=mysecretpassword \
-#   -e POSTGRES_DB=postgres \
-#   -p 5432:5432 \
-#   -v postgres_data:/var/lib/postgresql/data \
-#   postgres:bookworm
+volumes:
+  kafka-data:
+  timescaledb-data:

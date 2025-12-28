@@ -47,7 +47,7 @@ async function init_cron_worker() {
     cron_task.stop();
 
     //////////////////////  init Prometheus &&  start  collect  metrics ///////////////////////////////
-    const { job_counter, job_duration, push } = create_job_metrics("cron-job");
+    const { job_counter, job_duration, push } = create_job_metrics("cron_job");
     const end = job_duration.startTimer();
     job_counter.inc();
     //////////////////////////////////////////////////////////////////

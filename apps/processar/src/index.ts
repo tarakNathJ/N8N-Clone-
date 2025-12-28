@@ -19,7 +19,7 @@ async function init_kafka_producer(): Promise<Producer> {
 
   const kafka = new Kafka({
     clientId: clientId,
-    brokers: ["localhost:9092"],
+    brokers: [brokers],
   });
   producer = kafka.producer();
 
