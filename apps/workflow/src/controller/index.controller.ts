@@ -81,150 +81,143 @@ export const get_all_types_of_step = async_handler(async (req, res) => {
 });
 
 //create stpe
-export const create_step = async_handler(
-  async_handler(async (req, res) => {
-    const { name, index, workflow_id, meta_data, typeofstap_id } = req.body;
+export const create_step = async_handler(async (req, res) => {
+  const { name, index, workflow_id, meta_data, typeofstap_id } = req.body;
 
-    if (
-      !name == null ||
-      !index == null ||
-      !workflow_id == null ||
-      !typeofstap_id == null ||
-      typeof meta_data !== "object" ||
-      meta_data === null
-    ) {
-      throw new api_error(400, "full fill all requirement", Error.prototype);
-    }
+  if (
+    !name == null ||
+    !index == null ||
+    !workflow_id == null ||
+    !typeofstap_id == null ||
+    typeof meta_data !== "object" ||
+    meta_data === null
+  ) {
+    throw new api_error(400, "full fill all requirement", Error.prototype);
+  }
 
-    console.log(name, index, workflow_id, typeofstap_id, meta_data);
-    let status = false;
+  let status = false;
 
-    // chack every apps metadata are exist or not
-    switch (name) {
-      case "gmail":
-        status = new type_chack_for_steps_metadata().is_gmail(meta_data);
-        break;
-      case "telegram":
-        status = new type_chack_for_steps_metadata().is_telegram(meta_data);
-        break;
-      case "scheduler":
-        status = new type_chack_for_steps_metadata().is_scheduler(meta_data);
-        break;
-      case "receive_email":
-        status = new type_chack_for_steps_metadata().is_recerve_email(
-          meta_data
-        );
-        break;
-      case "form":
-        status = new type_chack_for_steps_metadata().is_from(meta_data);
-        break;
-      case "webhook":
-        status = new type_chack_for_steps_metadata().is_webhook(meta_data);
-        break;
-      default:
-        status = false;
-        break;
-    }
+  // chack every apps metadata are exist or not
+  switch (name) {
+    case "gmail":
+      status = new type_chack_for_steps_metadata().is_gmail(meta_data);
+      break;
+    case "telegram":
+      status = new type_chack_for_steps_metadata().is_telegram(meta_data);
+      break;
+    case "scheduler":
+      status = new type_chack_for_steps_metadata().is_scheduler(meta_data);
+      break;
+    case "receive_email":
+      status = new type_chack_for_steps_metadata().is_recerve_email(meta_data);
+      break;
+    case "form":
+      status = new type_chack_for_steps_metadata().is_from(meta_data);
+      break;
+    case "webhook":
+      status = new type_chack_for_steps_metadata().is_webhook(meta_data);
+      break;
+    default:
+      status = false;
+      break;
+  }
 
-    if (!status) {
-      throw new api_error(
-        409,
-        " metadata missmatch , try again",
-        Error.prototype
-      );
-    }
-
-    // chack workflow are exist or not
-    const chack_workflow_exist_or_not = await prisma.workflow.findFirst({
-      where: {
-        id: workflow_id,
-        //@ts-ignore
-        user_id: req.user.id,
-      },
-    });
-    if (!chack_workflow_exist_or_not) {
-      throw new api_error(
-        409,
-        "workflow are not exist , try again",
-        Error.prototype
-      );
-    }
-
-    // chack typeofstep  are exist or not
-    const chack_typeofstep_are_exist_or_not = await prisma.typeofstep.findFirst(
-      {
-        where: {
-          id: typeofstap_id,
-          name: name,
-        },
-        select: {
-          app: true,
-          id: true,
-        },
-      }
+  if (!status) {
+    throw new api_error(
+      409,
+      " metadata missmatch , try again",
+      Error.prototype
     );
-    if (!chack_typeofstep_are_exist_or_not) {
-      throw new api_error(
-        409,
-        "typeofstep are not exist , try again",
-        Error.prototype
-      );
-    }
+  }
 
-    if (
-      chack_typeofstep_are_exist_or_not.app === "webhook" &&
-      name === "webhook"
-    ) {
+  // chack workflow are exist or not
+  const chack_workflow_exist_or_not = await prisma.workflow.findFirst({
+    where: {
+      id: workflow_id,
+      //@ts-ignore
+      user_id: req.user.id,
+    },
+  });
+  if (!chack_workflow_exist_or_not) {
+    throw new api_error(
+      409,
+      "workflow are not exist , try again",
+      Error.prototype
+    );
+  }
+
+  // chack typeofstep  are exist or not
+  const chack_typeofstep_are_exist_or_not = await prisma.typeofstep.findFirst({
+    where: {
+      id: typeofstap_id,
+      name: name,
+    },
+    select: {
+      app: true,
+      id: true,
+    },
+  });
+  if (!chack_typeofstep_are_exist_or_not) {
+    throw new api_error(
+      409,
+      "typeofstep are not exist , try again",
+      Error.prototype
+    );
+  }
+
+  if (
+    chack_typeofstep_are_exist_or_not.app === "webhook" &&
+    name === "webhook"
+  ) {
+    // @ts-ignore
+    meta_data.URL = `${process.env.WORKFLOW_SERVER_URL}/${chack_workflow_exist_or_not.id}/${req.user.id}`;
+  }
+
+  // even step are exist thi update or not exist then then creat
+  const create_step = await prisma.step.upsert({
+    where: {
+      workflow_id_index: {
+        index: index,
+        workflow_id: chack_workflow_exist_or_not.id,
+      },
+    },
+    update: {
+      name,
+      typeofstap_id: chack_typeofstep_are_exist_or_not.id,
+      //@ts-ignore
+      user_id: req.user.id,
+      workflow_id: chack_workflow_exist_or_not.id,
+      meta_data,
+      status: schemaType.status.ACTIVE,
+      update_at: new Date(),
+    },
+
+    create: {
+      name,
+      index,
+      typeofstap_id: chack_typeofstep_are_exist_or_not.id,
       // @ts-ignore
-      meta_data.URL = `${process.env.WORKFLOW_SERVER_URL}/${chack_workflow_exist_or_not.id}/${req.user.id}`;
-    }
+      user_id: req.user.id,
+      workflow_id: chack_workflow_exist_or_not.id,
+      meta_data,
+      status: schemaType.status.ACTIVE,
+      create_at: new Date(),
+    },
+    select: {
+      name: true,
+      status: true,
+      create_at: true,
+    },
+  });
 
-    // even step are exist thi update or not exist then then creat
-    const create_step = await prisma.step.upsert({
-      where: {
-        workflow_id_index: {
-          index: index,
-          workflow_id: chack_workflow_exist_or_not.id,
-        },
-      },
-      update: {
-        name,
-        typeofstap_id: chack_typeofstep_are_exist_or_not.id,
-        //@ts-ignore
-        user_id: req.user.id,
-        workflow_id: chack_workflow_exist_or_not.id,
-        meta_data,
-        status: schemaType.status.ACTIVE,
-        update_at: new Date(),
-      },
+  if (!create_step) {
+    throw new api_error(400, "db entry failed : try again", Error.prototype);
+  }
 
-      create: {
-        name,
-        index,
-        typeofstap_id: chack_typeofstep_are_exist_or_not.id,
-        // @ts-ignore
-        user_id: req.user.id,
-        workflow_id: chack_workflow_exist_or_not.id,
-        meta_data,
-        status: schemaType.status.ACTIVE,
-        create_at: new Date(),
-      },
-      select: {
-        name: true,
-        status: true,
-        create_at: true,
-      },
-    });
-
-    if (!create_step) {
-      throw new api_error(400, "db entry failed : try again", Error.prototype);
-    }
-
-    return res
-      .status(201)
-      .json(new api_responce(201, create_step, "success fully create step"));
-  })
-);
+  return res
+    .status(201)
+    .json(new api_responce(201, create_step, "success fully create step"));
+});
 
 export const create_work_flow = async_handler(async (req, res) => {
   const { name } = req.body;
@@ -288,9 +281,9 @@ export const get_all_workflow = async_handler(async (req, res) => {
       // ⭐ FIRST STEP
       stepes: {
         orderBy: {
-          index: "asc", 
+          index: "asc",
         },
-        take: 1, 
+        take: 1,
         select: {
           id: true,
           name: true,
@@ -336,8 +329,6 @@ export const get_all_steps = async_handler(async (req, res) => {
 
 // webhook call
 export const webhook_call = async_handler(async (req, res) => {
-
-  
   const { workflow_id, user_id } = req.params;
   console.log(workflow_id, " : ", user_id);
   const body = req.body;
@@ -436,12 +427,71 @@ export const get_workflow_data = async_handler(async (req, res) => {
   if (!find_workflow_are_exist_or_not) {
     throw new api_error(404, "workflow are not exist", Error.prototype);
   }
-  return res
-    .status(200)
-    .json(
-      new api_responce(200, {
-        find_workflow_are_exist_or_not,
-        get_all_type_of_step,
-      })
+  return res.status(200).json(
+    new api_responce(200, {
+      find_workflow_are_exist_or_not,
+      get_all_type_of_step,
+    })
+  );
+});
+
+/**
+ * Workflow steps are executed strictly based on their `index`
+ * (0 → 1 → 2 → ...).
+ *
+ * During workflow creation/editing on the frontend, steps may be
+ * assigned temporary or random index values to support better UI
+ * interactions such as drag-and-drop ordering.
+ *
+ * This route is responsible for normalizing those temporary indexes
+ * into a clean, sequential execution order before the workflow is saved.
+ *
+ * The final persisted indexes guarantee deterministic workflow execution.
+ */
+
+export const save_workflow = async_handler(async (req, res) => {
+  const { workflow_id, workflow_index_object } = req.body;
+  // @ts-ignore
+  const user_id: number = req.user.id;
+
+  if (!workflow_id || !workflow_index_object) {
+    throw new api_error(400, "full fill all requirement", Error.prototype);
+  }
+  const find_all_steps = await prisma.step.findMany({
+    where: {
+      user_id: user_id,
+      workflow_id: workflow_id,
+    },
+  });
+
+  if (!find_all_steps) {
+    throw new api_error(404, "any workflow not exist", Error.prototype);
+  }
+
+  const final_steps = find_all_steps.map((step) => {
+    for (let [key, value] of Object.entries(workflow_index_object)) {
+      //@ts-ignore
+      if (value.id == step.index) {
+        step.index = parseInt(key);
+        break;
+      }
+    }
+    return step;
+  });
+  try {
+    await prisma.$transaction(
+      final_steps.map((step) =>
+        prisma.step.update({
+          where: { id: step.id },
+          data: { index: step.index },
+        })
+      )
     );
+
+    return res
+      .status(201)
+      .json(new api_responce(201, {}, "update successfully"));
+  } catch (error) {
+    throw new api_error(500, "workflow update failed", error as Error);
+  }
 });
