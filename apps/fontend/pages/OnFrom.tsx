@@ -86,6 +86,7 @@ export default function N8nSubmitForm(): JSX.Element | null {
     }
   };
 
+  // @ts-ignore
   const handleSubmit = async (e: FormEvent<HTMLFormElement>): void => {
     e.preventDefault();
     const controller = new AbortController();
