@@ -245,7 +245,7 @@ const Inspector: React.FC = () => {
             )}
 
             <div>
-              {selectedNode.type === "form" ? (
+              {(selectedNode.type as string) === "form" ? (
                 <motion.button
                   onClick={() => {
                     const updatedFields = [
