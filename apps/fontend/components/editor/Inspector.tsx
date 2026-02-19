@@ -16,7 +16,7 @@ const Inspector: React.FC = () => {
   const [type_of__step, setType_of_step] = useState({});
 
   const { selectedNodeId, nodes } = useSelector(
-    (state: RootState) => state.editor
+    (state: RootState) => state.editor,
   );
 
   const selectedNode = selectedNodeId ? nodes[selectedNodeId] : null;
@@ -76,7 +76,7 @@ const Inspector: React.FC = () => {
   };
 
   const get_user_privious_step = JSON.parse(
-    sessionStorage.getItem("user_privious_step") || "null"
+    sessionStorage.getItem("user_privious_step") || "null",
   );
 
   let status_of_step: any = {};
@@ -102,7 +102,7 @@ const Inspector: React.FC = () => {
         "           and data:",
         selectedNode,
         " and metadata:",
-        found
+        found,
       );
       const responce = await api_init.post("/api/workflow/create-step", {
         name: found.name,
@@ -134,7 +134,7 @@ const Inspector: React.FC = () => {
       const responce = await api_init.delete(
         `/api/workflow/delete-step/${
           status_of_step[2] ? status_of_step[1] : parseInt(selectedNode.id)
-        }/${JSON.parse(sessionStorage.getItem("workflow_id") || "null")}`
+        }/${JSON.parse(sessionStorage.getItem("workflow_id") || "null")}`,
       );
       if (responce.data.success) {
         toast(`delete node : ${(type_of__step as any).name}`, {
@@ -151,7 +151,7 @@ const Inspector: React.FC = () => {
   }
 
   const sortedNodeIds = Object.keys(nodes).sort(
-    (a, b) => parseInt(a, 10) - parseInt(b, 10)
+    (a, b) => parseInt(a, 10) - parseInt(b, 10),
   );
   const nodeIndex = selectedNodeId ? sortedNodeIds.indexOf(selectedNodeId) : -1;
 
@@ -191,7 +191,7 @@ const Inspector: React.FC = () => {
                   value={fieldValues[item.label] ?? ""}
                   //@ts-ignore
                   workflow_id={JSON.parse(
-                    sessionStorage.getItem("workflow_id")
+                    sessionStorage.getItem("workflow_id"),
                   )}
                   user_id={JSON.parse(sessionStorage.getItem("user_id"))}
                   onChange={(v) => handleFieldChange(item.label, v)}
@@ -314,10 +314,14 @@ const InputField = ({
   value: string;
   onChange: (v: string) => void;
 }) => {
+  console.log("lable : ", label);
   return (
     <div>
       <label className="text-sm font-medium text-gray-400 block mb-1">
         {label}
+      </label>
+      <label className={`text-sm font-medium  ${label != "url" ? "hidden":""} text-gray-400 block mb-1`}>
+        {value}
       </label>
 
       <input
@@ -325,7 +329,7 @@ const InputField = ({
         placeholder={value ?? ""} // <= always a string
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#4295f1]"
+        className={`w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white ${label == "url" ? "hidden":""} focus:outline-none focus:ring-2 focus:ring-[#4295f1]`}
       />
     </div>
   );

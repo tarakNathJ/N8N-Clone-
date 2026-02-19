@@ -96,7 +96,7 @@ services:
       KAFKA_TOPIC: USER-TRADE
       KAFKA_GROUP_ID: worker-group
       KAFKA_CLIENT_ID: mykafka
-      KAFKA_BROCKER: "kafka:9092"
+      KAFKA_BROKER: "kafka:9092"
       DATABASE_URL: "postgresql://postgres:mysecretpassword@postgresql:5432/postgres"
       NODE_OPTIONS: "--max-old-space-size=128"
     deploy:

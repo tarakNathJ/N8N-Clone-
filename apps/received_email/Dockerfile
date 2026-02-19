@@ -27,7 +27,7 @@ RUN npx prisma generate
 
 # Build only required app
 WORKDIR /app
-RUN npx turbo run build --filter=cron_worker
+RUN npx turbo run build --filter=received_email
 
 # =========================
 # Stage 2: Runtime
@@ -44,10 +44,10 @@ RUN apt-get update -y && \
 ENV NODE_ENV=production
 
 # Copy built output
-COPY --from=builder /app/apps/cron_worker/dist ./dist
+COPY --from=builder /app/apps/received_email/dist ./dist
 
 # Copy app package.json
-COPY --from=builder /app/apps/cron_worker/package*.json ./
+COPY --from=builder /app/apps/received_email/package*.json ./
 
 # Copy packages (includes generated Prisma)
 COPY --from=builder /app/packages ./packages
@@ -55,7 +55,8 @@ COPY --from=builder /app/packages ./packages
 # Copy node_modules
 COPY --from=builder /app/node_modules ./node_modules
 
+EXPOSE 4040
 
 CMD ["node", "dist/index.js"]
 
-#  docker build --no-cache -t n8_n/cron_worker:v1 -f apps/cron_worker/Dockerfile .
+#  docker build --no-cache -t n8_n/primary_backend:v3 -f apps/primary_backend/Dockerfile .

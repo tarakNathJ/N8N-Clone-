@@ -4,7 +4,7 @@ import {
   get_all_types_of_step,
   create_step,
   get_all_steps,
-  create_work_flow,
+  create_workflow,
   get_all_workflow,
   webhook_call,
   get_workflow_data,
@@ -22,9 +22,10 @@ router.route("/create-type-of-step").post(create_types_of_steps);
 router.route("/get-all-steps").post(get_all_types_of_step);
 router.route("/get-steps").post(verify_JWT, get_all_steps);
 router.route("/create-step").post(verify_JWT, create_step);
-router.route("/create-workflow").post(verify_JWT, create_work_flow);
+router.route("/create-workflow").post(verify_JWT, create_workflow);
 router.route("/get-workflow").get(verify_JWT, get_all_workflow);
 router.route("/webhook/:workflow_id/:user_id").post(webhook_call);
+
 router
   .route("/get-workflow-data/:workflow_id")
   .get(verify_JWT, get_workflow_data);

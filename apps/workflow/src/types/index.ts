@@ -38,8 +38,8 @@ export type scheduler = {
 };
 
 export interface receive_email {
-  email: string;
-  app_password: string;
+  secret: string;
+  url: string;
 }
 
 export type webhook = {

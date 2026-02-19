@@ -1,48 +1,49 @@
-import { prisma, schemaType } from "@master/database";
 
-type responce_type = {
-  meta_data: object;
-  name: string;
+import { prisma } from "@master/database";
+
+type StepData = {
+  get_step_find_by_id_and_index: {
+    name: string;
+    meta_data: any;
+  };
+  get_steprun_table: {
+    meta_data: any;
+    workflow_id: number;
+  };
 };
-class database_service_provider {
-  async getdata(id: number, stage: number): Promise<responce_type | any> {
-    try {
-      const prisma_transaction = await prisma.$transaction(async (ts) => {
-        const get_steprun_table = await ts.stepes_run.findFirst({
-          where: {
-            id: id,
-          },
-          select: {
-            meta_data: true,
-            workflow_id: true,
-          },
-        });
-        if (!get_steprun_table) {
-          return false;
-        }
 
-        const get_step_find_by_id_and_index = await ts.step.findUnique({
+class database_service_provider {
+  async getdata(id: number, stage: number): Promise<StepData | false> {
+    try {
+      // @ts-ignore
+      return await prisma.$transaction(async (ts) => {
+        const steprun = await ts.stepes_run.findFirst({
+          where: { id },
+          select: { meta_data: true, workflow_id: true },
+        });
+
+        if (!steprun) return false;
+
+        const step = await ts.step.findUnique({
           where: {
             workflow_id_index: {
-              workflow_id: get_steprun_table?.workflow_id as number,
+              workflow_id: steprun.workflow_id as number,
               index: stage,
             },
           },
-          select: {
-            name: true,
-            meta_data: true,
-          },
+          select: { name: true, meta_data: true },
         });
-        if (!get_step_find_by_id_and_index) {
-          return false;
-        }
 
-        return {get_step_find_by_id_and_index , get_steprun_table} ;
+        if (!step) return false;
+
+        return {
+          get_step_find_by_id_and_index: step,
+          get_steprun_table: steprun,
+        };
       });
-
-      return prisma_transaction;
-    } catch (error :any) {
-       return false;
+    } catch (error: any) {
+      console.error("[DB] getdata error:", error.message);
+      return false;
     }
   }
 }

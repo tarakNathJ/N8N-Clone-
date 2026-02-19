@@ -1,81 +1,81 @@
+
+
+
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import type { AwsCredentialIdentity } from "@aws-sdk/types";
-import { prisma } from "@master/database";
 import axios from "axios";
 import fs from "fs";
 import path from "path";
 import { config } from "dotenv";
+
 config();
 
 class aws_s3_service_provider {
-  private s3_client: S3Client | undefined;
-  private bucket_name: string | undefined;
+  private s3_client: S3Client;
+  private bucket_name: string;
 
   constructor() {
-    this.bucket_name = process.env.AWS_S3_BUCKET_NAME;
-    const s3_region = process.env.AWS_S3_REGION;
-    const s3_access_key = process.env.AWS_S3_ACCESS_KEY;
-    const s3_secret_key = process.env.AWS_S3_SECRET_KEY;
+    const bucket = process.env.AWS_S3_BUCKET_NAME;
+    const region = process.env.AWS_S3_REGION;
+    const access_key = process.env.AWS_S3_ACCESS_KEY;
+    const secret_key = process.env.AWS_S3_SECRET_KEY;
+
+    if (!bucket || !region || !access_key || !secret_key) {
+      throw new Error("Missing required AWS environment variables");
+    }
+
+    this.bucket_name = bucket;
     this.s3_client = new S3Client({
-      region: s3_region as string,
+      region,
       credentials: {
-        accessKeyId: s3_access_key,
-        secretAccessKey: s3_secret_key,
+        accessKeyId: access_key,
+        secretAccessKey: secret_key,
       } as AwsCredentialIdentity,
     });
   }
 
-  //   generate pre-sign url
-  private async generate_presigned_url(filename: string) {
-    try {
-      const command = new GetObjectCommand({
-        Bucket: this.bucket_name,
-        Key: filename,
-      });
-
-      const expires_in = 60 * 20;
-      return await getSignedUrl(this.s3_client as S3Client, command, {
-        expiresIn: expires_in,
-      });
-    } catch (error: any) {
-      console.log(error.message);
-      throw new Error(error.message);
-    }
+  private async generate_presigned_url(filename: string): Promise<string> {
+    const command = new GetObjectCommand({
+      Bucket: this.bucket_name,
+      Key: filename,
+    });
+   
+    return await getSignedUrl(this.s3_client, command, { expiresIn: 60 * 20 });
   }
-  //download file and save all data
-  public async download_file(filename: string): Promise<string | boolean> {
-    try {
-        // get pre sign url 
-      const pre_sign_url = await this.generate_presigned_url(filename);
-      if (!pre_sign_url) {
-        console.error("pre-sign url not found");
-        return false;
-      }
-      // get file from aws s3
-      const responce = await axios.get(pre_sign_url, {
-        responseType: "json",
-      });
 
-    //   download this file and  send folder path
-    const folder = './emails';
-    const file_name = `${new Date()}`
-    if (!fs.existsSync(folder)) {
-        fs.mkdirSync(folder);
-    }
-    const file_path = path.join(folder, file_name)
-    const json_data = JSON.stringify(responce.data);
-    fs.writeFileSync(file_path, json_data , "utf-8");
-    
-    return `./emails/${file_name}`;
-    } catch (error: any) {
-      console.error(error.message);
-      throw new Error(error.message);
-    }
-  }
+  public async download_file(filename: string): Promise<string | false> {
+    try {
+      const presigned_url = await this.generate_presigned_url(filename);
 
   
-}
+      const response = await axios.get(presigned_url, {
+        responseType: "stream",
+      });
 
+      const folder = "./emails";
+      if (!fs.existsSync(folder)) {
+        fs.mkdirSync(folder, { recursive: true });
+      }
+
+ 
+      const safe_name = `${Date.now()}_${path.basename(filename)}`;
+      const file_path = path.join(folder, safe_name);
+
+
+      await new Promise<void>((resolve, reject) => {
+        const writer = fs.createWriteStream(file_path);
+        response.data.pipe(writer);
+        writer.on("finish", resolve);
+        writer.on("error", reject);
+      });
+
+      return file_path;
+    } catch (error: any) {
+      console.error("[S3] download_file error:", error.message);
+      return false;
+    }
+  }
+}
 
 export { aws_s3_service_provider };

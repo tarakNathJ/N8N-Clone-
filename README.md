@@ -217,7 +217,6 @@ graph TB
 |-----------|---------|---------|
 | PostgreSQL | 14.x | Primary Database |
 | Apache Kafka | 3.x | Message Broker |
-| Zookeeper | 3.x | Kafka Coordination |
 | Docker | 20.x | Containerization |
 | Docker Compose | 2.x | Multi-container Orchestration |
 | Nginx | Latest | Reverse Proxy |
@@ -736,40 +735,6 @@ erDiagram
   }
 }
 ```
-
-### ☁️ AWS S3 Step
-```json
-{
-  "type": "ACTION",
-  "actionType": "s3",
-  "config": {
-    "operation": "upload",
-    "bucket": "my-bucket",
-    "key": "path/to/file.txt",
-    "content": "File content",
-    "contentType": "text/plain"
-  }
-}
-```
-
-### 🔀 Condition Step
-```json
-{
-  "type": "CONDITION",
-  "actionType": "condition",
-  "config": {
-    "conditions": [
-      {
-        "field": "{{trigger.data.status}}",
-        "operator": "equals",
-        "value": "active"
-      }
-    ],
-    "logic": "AND"
-  }
-}
-```
-
 ---
 
 ## 🚢 Deployment

@@ -232,7 +232,7 @@ export const create_step = async_handler(async (req, res) => {
     .json(new api_responce(201, create_step, "success fully create step"));
 });
 
-export const create_work_flow = async_handler(async (req, res) => {
+export const create_workflow = async_handler(async (req, res) => {
   const { name } = req.body;
   if (!name) {
     throw new api_error(400, "full fill all requirement", Error.prototype);
@@ -577,7 +577,6 @@ export const from_submission = async_handler(async (req, res) => {
     throw new api_error(404, "workflow are not exist", Error.prototype);
   }
 
-
   const create_transaction = await prisma.$transaction(async (ts) => {
     const create_stepes_run = await ts.stepes_run.create({
       data: {
@@ -608,29 +607,17 @@ export const from_submission = async_handler(async (req, res) => {
     .json(new api_responce(201, [], "success fully create your workflow"));
 });
 
-/**
- * Workflow steps are executed strictly based on their `index`
- * (0 → 1 → 2 → ...).
- *
- * During workflow creation/editing on the frontend, steps may be
- * assigned temporary or random index values to support better UI
- * interactions such as drag-and-drop ordering.
- *
- * This route is responsible for normalizing those temporary indexes
- * into a clean, sequential execution order before the workflow is saved.
- *
- * The final persisted indexes guarantee deterministic workflow execution.
- */
 
 export const save_workflow = async_handler(async (req, res) => {
   const { workflow_id, workflow_index_object } = req.body;
-  console.log(workflow_id, workflow_index_object);
+
   // @ts-ignore
   const user_id: number = req.user.id;
 
   if (!workflow_id || !workflow_index_object) {
     throw new api_error(400, "full fill all requirement", Error.prototype);
   }
+
   const find_all_steps = await prisma.step.findMany({
     where: {
       user_id: user_id,
@@ -638,29 +625,46 @@ export const save_workflow = async_handler(async (req, res) => {
     },
   });
 
-  if (!find_all_steps) {
+  if (!find_all_steps || find_all_steps.length === 0) {
     throw new api_error(404, "any workflow not exist", Error.prototype);
   }
 
-  const final_steps = find_all_steps.map((step) => {
-    for (let [key, value] of Object.entries(workflow_index_object)) {
-      //@ts-ignore
-      if (value.id == step.index) {
-        step.index = parseInt(key);
-        break;
-      }
+  const indexMap = new Map<number, number>(); 
+
+  for (const [newIndex, value] of Object.entries(workflow_index_object)) {
+    // @ts-ignore
+    const stepId = parseInt(value.id);
+    const newIndexInt = parseInt(newIndex);
+
+
+    const stepExists = find_all_steps.some((s) => s.id === stepId);
+    if (stepExists) {
+      indexMap.set(stepId, newIndexInt);
     }
-    return step;
-  });
+  }
+
+  if (indexMap.size === 0) {
+    throw new api_error(400, "no valid steps to update", Error.prototype);
+  }
+
   try {
-    await prisma.$transaction(
-      final_steps.map((step) =>
-        prisma.step.update({
-          where: { id: step.id },
-          data: { index: step.index },
-        }),
-      ),
-    );
+    await prisma.$transaction(async (tx) => {
+     
+      for (const [stepId] of indexMap) {
+        await tx.step.update({
+          where: { id: stepId },
+          data: { index: -stepId },
+        });
+      }
+
+   
+      for (const [stepId, newIndex] of indexMap) {
+        await tx.step.update({
+          where: { id: stepId },
+          data: { index: newIndex },
+        });
+      }
+    });
 
     return res
       .status(201)

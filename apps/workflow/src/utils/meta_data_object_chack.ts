@@ -43,13 +43,14 @@ class type_chack_for_steps_metadata {
   }
 
   is_recerve_email(obj: receive_email): boolean {
+    
     if (
       typeof obj === "object" &&
       obj !== null &&
-      "email" in obj &&
-      "app_password" in obj &&
-      typeof obj.email === "string" &&
-      typeof obj.app_password === "string"
+      "secret" in obj &&
+      "url" in obj &&
+      typeof obj.secret === "string" &&
+      typeof obj.url === "string"
     ) {
       return true;
     } else {

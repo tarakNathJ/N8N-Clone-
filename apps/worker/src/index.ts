@@ -1,7 +1,7 @@
 import { Kafka, type Consumer, type Producer } from "kafkajs";
 import { database_service_provider } from "./utils/db_operation.js";
+import { handle_incoming_email_webhook } from "./apps/receive_email.js";
 import { mail_sender } from "./apps/gmail.app.js";
-import dotenv from "dotenv";
 import { send_message_on_telegram_bot } from "./apps/telegram.app.js";
 import { request_transfer_on_your_right_direction } from "./utils/routing_all_request.js";
 import type {
@@ -9,160 +9,209 @@ import type {
   object_type_for_telegram,
   receive_email_type,
 } from "./types/index.js";
-
-import { create_job_metrics } from "@repo/handler";
+import dotenv from "dotenv";
 
 dotenv.config();
 
-let producer: Producer;
-let consumer: Consumer;
+const brokers = (
+  process.env.KAFKA_BROKERS ||
+  process.env.KAFKA_BROKER ||
+  "localhost:9092"
+)
+  .split(",")
+  .map((b) => b.trim());
+
 const kafka = new Kafka({
-  clientId: process.env.KAFKA_CLIENT_ID,
-  //@ts-ignore
-  brokers: [process.env.KAFKA_BROCKER],
+  clientId: process.env.KAFKA_CLIENT_ID || "worker",
+  brokers,
+  retry: {
+    initialRetryTime: 300,
+    retries: 5,
+  },
 });
 
-const init_producer = () => {
+let producer: Producer | null = null;
+let consumer: Consumer | null = null;
+
+async function get_or_create_producer(): Promise<Producer> {
   if (producer) return producer;
-
   producer = kafka.producer();
+  await producer.connect();
+  console.log("[Kafka] Producer connected");
   return producer;
-};
+}
 
-const init_consumer = async (groupId = "default"): Promise<Consumer> => {
+async function get_or_create_consumer(groupId: string): Promise<Consumer> {
   if (consumer) return consumer;
-  consumer = kafka.consumer({
-    groupId: groupId,
-  });
-
+  consumer = kafka.consumer({ groupId });
   return consumer;
-};
+}
 
 async function work_executer() {
+  const topic = process.env.KAFKA_TOPIC;
+  const group_id = process.env.KAFKA_GROUP_ID;
+
+  if (!topic || !group_id) {
+    console.error(
+      "[Worker] KAFKA_TOPIC and KAFKA_GROUP_ID env vars are required",
+    );
+    process.exit(1);
+  }
+
+  const prod = await get_or_create_producer();
+
+  const cons = await get_or_create_consumer(group_id);
+
   try {
-    ///////////////////////////////////// init Prometheus metrics///////////////////////////
-    const { job_counter, job_duration, push } = create_job_metrics("worker");
-    //////////////////////////////////////////////////////////////////////////////////////////
-    // chack topic  are exist ot not
-    const topic = process.env.KAFKA_TOPIC;
-    const group_id = process.env.KAFKA_GROUP_ID;
-    if (!topic|| !group_id) {
-      console.error("env variable not exit , ");
-      process.exit(1);
-    }
- 
-    // get  consumer
-    const get_consumer = await init_consumer(group_id);
+    await cons.connect();
+    console.log("[Kafka] Consumer connected");
+  } catch (error: any) {
+    console.error("[Kafka] Consumer connection failed:", error.message);
+    process.exit(1);
+  }
 
-    // connect consumer
-    get_consumer?.connect().catch((error: any) => {
-      console.error(error.message);
-      process.exit(1);
-    });
+  await cons.subscribe({ topic, fromBeginning: true });
 
-    await get_consumer.subscribe({
-      topic: topic,
-      fromBeginning: true,
-    });
+  await cons.run({
+    autoCommit: false,
+    eachMessage: async ({ topic: msg_topic, partition, message }) => {
+      if (!message.value) {
+        await cons.commitOffsets([
+          {
+            topic: msg_topic,
+            partition,
+            offset: (parseInt(message.offset) + 1).toString(),
+          },
+        ]);
+        return;
+      }
 
-    get_consumer.run({
-      autoCommit: true,
-      eachMessage: async ({ topic, partition, message }) => {
-        if (!message.value) {
+      try {
+        const data = JSON.parse(message.value.toString());
+
+        if (data.type == "MESSAGE_FROM_PROECSSOR_RECEIVE") {
+          const result = await handle_incoming_email_webhook(data);
+          await prod.send({
+            topic,
+            messages: [
+              {
+                value: JSON.stringify({
+                  type: "MESSAGE_FROM_PROECSSOR",
+                  run: {
+                    stepes_run_id: (result as any)?.step_run_id,
+                    reseve_email_validator: (result as any)?.payload,
+                  },
+                  stage: (result as any)?.step + 1,
+                }),
+              },
+            ],
+          });
+
+          await cons.commitOffsets([
+            {
+              topic: msg_topic,
+              partition,
+              offset: (parseInt(message.offset) + 1).toString(),
+            },
+          ]);
+
           return;
         }
 
-        // collect Prometheus metrics
-        ////////////////////// start metrics ///////////////////////////////
-        const end = job_duration.startTimer();
-        job_counter.inc();
-        //////////////////////////////////////////////////////////////////
+        if (data.type !== "MESSAGE_FROM_PROECSSOR") {
+          await cons.commitOffsets([
+            {
+              topic: msg_topic,
+              partition,
+              offset: (parseInt(message.offset) + 1).toString(),
+            },
+          ]);
+          return;
+        }
 
-        const data = JSON.parse(message.value?.toString());
+        const db_data = await new database_service_provider().getdata(
+          data.run.stepes_run_id,
+          data.stage,
+        );
 
-        await new Promise((resolve, reject) => setTimeout(resolve, 6000));
-        // console.log(data);
-        if (data.type == "MESSAGE_FROM_PROECSSOR") {
-          // chack in our data base data are exist or not
-          const db_data = await new database_service_provider().getdata(
-            data.run.stepes_run_id,
-            data.stage
-          );
+        if (!db_data || !db_data.get_step_find_by_id_and_index) {
+          await cons.commitOffsets([
+            {
+              topic: msg_topic,
+              partition,
+              offset: (parseInt(message.offset) + 1).toString(),
+            },
+          ]);
+          return;
+        }
 
-          if (
-            !db_data ||
-            db_data.length == 0 ||
-            !db_data.get_step_find_by_id_and_index
-          ) {
-            return;
-          }
+        let template:
+          | object_type_for_email
+          | object_type_for_telegram
+          | receive_email_type
+          | null = null;
 
-          let template:
-            | object_type_for_email
-            | object_type_for_telegram
-            | receive_email_type
-            | null = null;
+        const step_name = db_data.get_step_find_by_id_and_index.name;
+        const step_meta = db_data.get_step_find_by_id_and_index.meta_data;
+        const run_meta = db_data.get_steprun_table?.meta_data;
 
-          // chack which type of work
-          switch (db_data.get_step_find_by_id_and_index.name) {
-            case "gmail":
-              const email_template = {
-                sender_email:
-                  db_data.get_step_find_by_id_and_index.meta_data.email,
-                app_password:
-                  db_data.get_step_find_by_id_and_index.meta_data.app_password,
-                message:
-                  db_data.get_step_find_by_id_and_index.meta_data.message,
-                receiver_email: db_data.get_steprun_table?.meta_data.email,
-                subject: " n8n ",
-                stepes_run_id: data.run.stepes_run_id,
-                stage: data.stage,
+        switch (step_name) {
+          case "gmail":
+            template = {
+              sender_email: step_meta.email,
+              app_password: step_meta.app_password,
+              message: step_meta.message,
+              receiver_email: run_meta.email,
+              subject: "n8n",
+              stepes_run_id: data.run.stepes_run_id,
+              stage: data.stage,
+            } as object_type_for_email;
+            break;
+
+          case "telegram":
+            let meta_data = run_meta;
+            if (data.run.reseve_email_validator) {
+              meta_data = {
+                resever_email_datas: data.run.reseve_email_validator.id,
               };
-              template = email_template;
-              break;
-            case "telegram":
-              let meta_data = db_data.get_steprun_table.meta_data;
-              if (data.run.reseve_email_validator) {
-                console.log(data.run.reseve_email_validator);
-                meta_data = {
-                  resever_email_datas: data.run.reseve_email_validator[0].id,
-                };
-              }
-              const telegram_template = {
-                token: db_data.get_step_find_by_id_and_index.meta_data.token,
-                chat_id: db_data.get_step_find_by_id_and_index.meta_data.chatId,
-                message: meta_data,
-              };
-              template = telegram_template;
-              break;
-            case "receive_email":
-              const receive_email_template = {
-                stepes_run_id: data.run.stepes_run_id,
-              };
-              template = receive_email_template;
+            }
+            template = {
+              token: step_meta.token,
+              chat_id: step_meta.chatId,
+              message: meta_data,
+            } as object_type_for_telegram;
+            break;
 
-              break;
-            default:
-              break;
-          }
+          case "receive_email":
+            template = {
+              stepes_run_id: data.run.stepes_run_id,
+            } as receive_email_type;
+            break;
 
-          if (!template) {
-            return;
-          }
+          default:
+            console.warn("[Worker] Unknown step name:", step_name);
+            break;
+        }
 
-          await new request_transfer_on_your_right_direction().routing_all_request_on_right_direction(
-            db_data.get_step_find_by_id_and_index.name,
-            //@ts-ignore
-            template
-          );
+        if (!template) {
+          await cons.commitOffsets([
+            {
+              topic: msg_topic,
+              partition,
+              offset: (parseInt(message.offset) + 1).toString(),
+            },
+          ]);
+          return;
+        }
 
-          if (db_data.get_step_find_by_id_and_index.name == "receive_email")
-            return;
-          // produce new message for next->target
-          const get_producer = init_producer();
-          await get_producer.connect();
-          await get_producer.send({
-            topic: process.env.KAFKA_TOPIC as string,
+        await new request_transfer_on_your_right_direction().routing_all_request_on_right_direction(
+          step_name,
+          template as any,
+        );
+
+        if (step_name !== "receive_email") {
+          await prod.send({
+            topic,
             messages: [
               {
                 value: JSON.stringify({
@@ -174,25 +223,34 @@ async function work_executer() {
             ],
           });
         }
-        ////////////////////// end metrics ///////////////////////////////
-        end();
-        await push();
-        ///////////////////////////////////////////////////////
-        await consumer.commitOffsets([
+
+        await cons.commitOffsets([
           {
-            topic,
+            topic: msg_topic,
             partition,
             offset: (parseInt(message.offset) + 1).toString(),
           },
         ]);
-        await new Promise((resolve, reject) => setTimeout(resolve, 4000));
-      },
-    });
-  } catch (error: any) {
-    console.error(error);
-    process.exit(1);
-  }
+      } catch (error: any) {
+        console.error("Worker eachMessage error:", error.message);
+      }
+    },
+  });
 }
 
+async function shutdown() {
+  console.log("Worker Shutting down gracefully");
+  try {
+    if (consumer) await consumer.disconnect();
+    if (producer) await producer.disconnect();
+  } catch (e) {}
+  process.exit(0);
+}
 
-work_executer();
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
+
+work_executer().catch((error) => {
+  console.error("Worker Fatal error:", error);
+  process.exit(1);
+});
