@@ -72,7 +72,7 @@ class aws_s3_service_provider {
 
       return file_path;
     } catch (error: any) {
-      console.error("[S3] download_file error:", error.message);
+      console.error("s3 download_file error:", error.message);
       return false;
     }
   }

@@ -1,8 +1,7 @@
 import { Kafka, type Consumer, type Producer } from "kafkajs";
 import { database_service_provider } from "./utils/db_operation.js";
 import { handle_incoming_email_webhook } from "./apps/receive_email.js";
-import { mail_sender } from "./apps/gmail.app.js";
-import { send_message_on_telegram_bot } from "./apps/telegram.app.js";
+import { create_job_metrics } from "@repo/handler";
 import { request_transfer_on_your_right_direction } from "./utils/routing_all_request.js";
 import type {
   object_type_for_email,
@@ -37,7 +36,7 @@ async function get_or_create_producer(): Promise<Producer> {
   if (producer) return producer;
   producer = kafka.producer();
   await producer.connect();
-  console.log("[Kafka] Producer connected");
+  console.log("Kafka Producer connected");
   return producer;
 }
 
@@ -48,12 +47,16 @@ async function get_or_create_consumer(groupId: string): Promise<Consumer> {
 }
 
 async function work_executer() {
+  ///////////////////////////////////// init Prometheus metrics///////////////////////////
+  const { job_counter, job_duration, push } = create_job_metrics("worker");
+  //////////////////////////////////////////////////////////////////////////////////////////
+
   const topic = process.env.KAFKA_TOPIC;
   const group_id = process.env.KAFKA_GROUP_ID;
 
   if (!topic || !group_id) {
     console.error(
-      "[Worker] KAFKA_TOPIC and KAFKA_GROUP_ID env vars are required",
+      "Worker KAFKA_TOPIC and KAFKA_GROUP_ID env vars are required",
     );
     process.exit(1);
   }
@@ -64,9 +67,9 @@ async function work_executer() {
 
   try {
     await cons.connect();
-    console.log("[Kafka] Consumer connected");
+    console.log("Kafka Consumer connected");
   } catch (error: any) {
-    console.error("[Kafka] Consumer connection failed:", error.message);
+    console.error("Kafka]Consumer connection failed:", error.message);
     process.exit(1);
   }
 
@@ -88,6 +91,12 @@ async function work_executer() {
 
       try {
         const data = JSON.parse(message.value.toString());
+
+        // collect Prometheus metrics
+        ////////////////////// start metrics ///////////////////////////////
+        const end = job_duration.startTimer();
+        job_counter.inc();
+        //////////////////////////////////////////////////////////////////
 
         if (data.type == "MESSAGE_FROM_PROECSSOR_RECEIVE") {
           const result = await handle_incoming_email_webhook(data);
@@ -189,7 +198,7 @@ async function work_executer() {
             break;
 
           default:
-            console.warn("[Worker] Unknown step name:", step_name);
+            console.warn("Worker Unknown step name:", step_name);
             break;
         }
 
@@ -224,6 +233,10 @@ async function work_executer() {
           });
         }
 
+        ////////////////////// end metrics ///////////////////////////////
+        end();
+        await push();
+        ///////////////////////////////////////////////////////
         await cons.commitOffsets([
           {
             topic: msg_topic,
@@ -238,17 +251,7 @@ async function work_executer() {
   });
 }
 
-async function shutdown() {
-  console.log("Worker Shutting down gracefully");
-  try {
-    if (consumer) await consumer.disconnect();
-    if (producer) await producer.disconnect();
-  } catch (e) {}
-  process.exit(0);
-}
 
-process.on("SIGINT", shutdown);
-process.on("SIGTERM", shutdown);
 
 work_executer().catch((error) => {
   console.error("Worker Fatal error:", error);

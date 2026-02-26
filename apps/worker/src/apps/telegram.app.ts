@@ -31,7 +31,7 @@ class send_message_on_telegram_bot {
       }
       return true;
     } catch (error: any) {
-      console.error("[Telegram] send_message error:", error.message);
+      console.error("Telegram send_message error:", error.message);
       throw new Error(error.message);
     }
   }
@@ -50,7 +50,7 @@ class send_message_on_telegram_bot {
       typeof downloaded_path !== "string" ||
       !fs.existsSync(downloaded_path)
     ) {
-      console.error("[Telegram] File not found after download:", downloaded_path);
+      console.error("Telegram File not found after download:", downloaded_path);
       return false;
     }
 
