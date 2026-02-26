@@ -29,11 +29,11 @@ async function init_kafka_producer(): Promise<Producer> {
 const process_all_data = async () => {
   while (true) {
     try {
-      ////////////////////////// init Prometheus && start////////////////////
-      // const { job_counter, job_duration, push } = create_job_metrics("processor");
-      // const end = job_duration.startTimer();
-      // job_counter.inc();
-      /////////////////////////////////////////////////////////////
+      //////////////////////// init Prometheus && start////////////////////
+      const { job_counter, job_duration, push } = create_job_metrics("processor");
+      const end = job_duration.startTimer();
+      job_counter.inc();
+      ///////////////////////////////////////////////////////////
 
       let get_producer: Producer;
       const topic = process.env.KAFKA_TOPIC;
@@ -82,11 +82,11 @@ const process_all_data = async () => {
       //////////////////// end transaction end //////////////////////////
 
       //////////////// end collect metrics /////////////////
-      // console.log("endsss")
-      // end();
-      // console.log("endsss ko ",end)
-      // await push();
-      //  console.log("endss s")
+      console.log("endsss")
+      end();
+      console.log("endsss ko ",end)
+      await push();
+       console.log("endss s")
       /////////////////////////////////////////////////////
       console.log("process end");
       await new Promise((resolve, reject) => setTimeout(resolve, 10000));
