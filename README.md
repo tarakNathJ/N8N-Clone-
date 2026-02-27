@@ -34,7 +34,7 @@
 
 
 
-### 🎯 **[grafana Live →](https://n8n-grafana.taraknathjana.com/public-dashboards/e3d95954b266434393521a752b4501d7)**
+### 🎯 **[grafana Live →](https://n8n-grafana.tarak.online/public-dashboards/3663bfef35ba42feaeb2c30240a94ba7)**
 
 </div>
 
